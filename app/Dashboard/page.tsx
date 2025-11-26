@@ -124,7 +124,7 @@ const page = () => {
           </div>
 
           {/* Axle Insights */}
-          <div className="bg-white/2 rounded-2xl p-8 border border-white/5 hover:border-white/10 transition-colors">
+          <div className="bg-white/2 rounded-4xl p-8 border border-white/5 hover:border-white/10 transition-colors">
             <div className="flex items-center gap-2 mb-6">
               <LightningIcon size={20} className="text-base" />
               <h2 className="text-white text-sm font-semibold">
@@ -148,9 +148,9 @@ const page = () => {
           </div>
 
           {/* Slack Card */}
-          <div className="bg-white/2 rounded-2xl p-8 border border-white/5 hover:border-white/10 transition-colors flex flex-col items-center justify-center text-center min-h-[280px]">
-            <div className="text-4xl mb-4">⚙️</div>
-            <h3 className="text-white font-semibold mb-3">
+          <div className="bg-white/2 rounded-4xl p-8 border border-white/5 hover:border-white/10 transition-colors flex flex-col items-center justify-center text-center min-h-[280px]">
+           
+            <h3 className="text-white font-semibold text-2xl max-w-sm mb-3">
               You've not connected your Slack
             </h3>
             <p className="text-white/50 text-sm mb-6">
