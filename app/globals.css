@@ -34,11 +34,13 @@ h1 {
   display: none;
 }
 
-.login {
-  background: url('/bg.png');
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+/* hide scrollbar for all browsers */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 .loader-light {

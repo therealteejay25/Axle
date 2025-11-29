@@ -12,6 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import React, { useState } from "react";
 import Image from "next/image";
+import AxleInput from "./components/ChatSidebar"
 
 const Page = () => {
   const [askInput, setAskInput] = useState("");
@@ -255,27 +256,7 @@ const Page = () => {
 
         {/* Ask Axle Input */}
         <div className="flex justify-center">
-          <div
-            onClick={() => setIsOpen(true)}
-            className="bg-white/4 rounded-full flex items-center gap-4 px-6 py-3 hover:border-white/10 transition-colors w-[50%] cursor-pointer"
-          >
-            <Image src="/logo.svg" width="30" height="30" alt="Axle Logo" />
-
-            <input
-              type="text"
-              value={askInput}
-              onChange={(e) => setAskInput(e.target.value)}
-              placeholder="Ask Axle..."
-              className="flex-1 bg-transparent outline-none text-white placeholder:text-white/70 text-lg cursor-pointer"
-              readOnly
-            />
-            <button
-              onClick={() => setIsOpen(true)}
-              className="bg-base hover:bg-base/90 p-3 rounded-full text-white transition-colors shrink-0 active:scale-95"
-            >
-              <PaperPlaneRight size={18} />
-            </button>
-          </div>
+        <AxleInput/>
         </div>
       </div>
     </div>
