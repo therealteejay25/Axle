@@ -1,4 +1,5 @@
 import { Sidebar } from "@/app/Dashboard/components/Sidebar";
+import { Header } from "@/app/Dashboard/components/Header";
 
 export default function AppLayout({
   children,
@@ -6,13 +7,18 @@ export default function AppLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        <div className="flex">
-          <Sidebar />
-          <main className="flex-1 ml-72">{children}</main>
-        </div>
-      </body>
-    </html>
+    <div className="min-h-screen flex bg-[#0a0a0a] text-white">
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col ml-72">
+        {/* Header */}
+        <Header />
+
+        {/* Page Content */}
+        <main className="flex-1 p-6">{children}</main>
+      </div>
+    </div>
   );
 }

@@ -82,7 +82,6 @@ const AskAxleInput = () => {
 
   return (
     <>
-      {/* Ask Axle Button */}
       <div className="flex justify-center">
         <div
           onClick={() => setIsOpen(true)}

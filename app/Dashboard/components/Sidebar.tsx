@@ -27,7 +27,7 @@ const sidebarItems: SidebarItem[] = [
   {
     label: "Agents",
     icon: <Cpu size={20} weight="bold" />,
-    href: "/agents",
+    href: "/Dashboard/Agents",
     id: "agents",
   },
   {
@@ -53,7 +53,7 @@ export const Sidebar = () => {
 
   return (
     <div className="w-70 h-screen fixed left-0 top-0 flex flex-col p-6">
-      {/* Logo Section */}
+     
       <div className="flex items-center gap-3 mb-12">
         <Image
           src="/logo.svg"

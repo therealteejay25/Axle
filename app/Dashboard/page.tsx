@@ -1,10 +1,5 @@
 "use client";
 import {
-  ActivityIcon,
-  LightningIcon,
-  PlusIcon,
-  SlackLogoIcon,
-  MicrophoneIcon,
   CaretDownIcon,
   PaperPlaneRight,
   Repeat,
@@ -81,22 +76,7 @@ const Page = () => {
   return (
     <div className="w-full min-h-screen bg-dark">
       {/* Top Header Bar */}
-      <div className="px-8 py-6 flex justify-between items-center">
-        <p className="text-white text-4xl font-semibold">Welcome Back, Tayo!</p>
-
-        <button className="flex items-center gap-3 px-4 py-3 rounded-full border border-white/4 hover:bg-white/5 transition-colors bg-white/4">
-          <Image
-            src="/logo.svg"
-            width="30"
-            height="30"
-            alt="User avatar"
-            className="rounded-full"
-          />
-          <span className="text-white/80 font-bold text-xl">Tayo</span>
-          <CaretDownIcon size={20} className="text-white/60" />
-        </button>
-      </div>
-
+    
       {/* Main Section */}
       <div className="px-8 py-8">
         <div className="grid grid-cols-2 gap-8 mb-8">
@@ -144,7 +124,7 @@ const Page = () => {
             </div>
           </div>
 
-          {/* Automation Updates */}
+        
           <div className="bg-white/2 rounded-4xl p-6">
             <div className="flex items-center gap-2 mb-6">
               <Repeat size={30} className="text-white" />
@@ -189,9 +169,9 @@ const Page = () => {
           </div>
         </div>
 
-        {/* Bottom CTA Cards */}
+      
         <div className="grid grid-cols-3 gap-6 mb-28">
-          {/* Create Agent Card */}
+         
           <div className="bg-white/2 rounded-4xl px-16 py-10 flex flex-col items-center justify-center text-center ">
             <h3 className="text-white font-semibold mb-3 text-2xl ">
               Have a thing task that you need to automate?
@@ -205,9 +185,9 @@ const Page = () => {
             </button>
           </div>
 
-          {/* Axle Insights Card */}
+          
           <div className="bg-white/2 rounded-4xl p-8 md:py-6 md:px-6">
-            {/* Header */}
+          
             <div className="flex items-center gap-3 mb-5">
               <Repeat size={26} className="text-white" />
               <h2 className="text-white text-xl font-semibold">
@@ -239,7 +219,7 @@ const Page = () => {
             </div>
           </div>
 
-          {/* Slack Card */}
+         
           <div className="bg-white/2 rounded-4xl px-16 py-10 flex flex-col items-center justify-center text-center">
             <h3 className="text-white font-semibold mb-3 text-2xl ">
               You've not connected your Slack
