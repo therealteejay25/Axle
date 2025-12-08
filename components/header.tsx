@@ -8,23 +8,23 @@ const Header = () => {
         <Image
           src="/logo.svg"
           alt="user"
-          width={32}
-          height={32}
+          width={20}
+          height={20}
           className="rounded-none border-black"
         />
-        <span className="text-white text-3xl font-semibold">Axle</span>
+        <span className="text-white text-xl font-semibold">Axle</span>
       </div>
-      <nav className="flex items-center space-x-10 text-white/50 font-medium text-lg">
-        <a href="#" className="hover:text-green-400 transition-colors">
+      <nav className="flex items-center space-x-10 text-white/50 font-medium">
+        <a href="#" className="hover:text-base transition-colors">
           Docs
         </a>
-        <a href="#" className="hover:text-green-400 transition-colors">
+        <a href="#" className="hover:text-base transition-colors">
           Features
         </a>
-        <a href="#" className="hover:text-green-400 transition-colors">
+        <a href="#" className="hover:text-base transition-colors">
           Pricing
         </a>
-        <Button className="bg-green-500 text-white font-semibold rounded-full px-10 py-5 hover:bg-green-400 transition-all">
+        <Button className="bg-base text-white font-semibold text-[16px] rounded-full px-9 py-6 hover:bg-base transition-all">
           Check it out
         </Button>
       </nav>
