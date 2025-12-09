@@ -1,24 +1,292 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL!;
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-    const res = await fetch(`${API_URL}${endpoint}`,{
-        ...options,
-        credentials: "include",
-        headers : {
-            "Content-Type": "application/json",
-            ...(options.headers || {})
-        },
+// Cookie helper functions
+const getCookie = (name: string): string | null => {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
+  return null;
+};
+
+// Token management - cookies are primary, localStorage as fallback
+const getToken = () => {
+  if (typeof window === "undefined") return null;
+  // Try to get from cookie first (if available in client-side)
+  // Note: HttpOnly cookies can't be read by JS, so we rely on the server
+  // For client-side, we'll use localStorage as a fallback for Authorization header
+  return localStorage.getItem("accessToken");
+};
+
+const setToken = (token: string) => {
+  if (typeof window === "undefined") return;
+  // Store in localStorage as fallback for Authorization header
+  // The actual secure token is in HTTP-only cookie set by backend
+  localStorage.setItem("accessToken", token);
+};
+
+const removeToken = () => {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  // Clear cookies by setting them to expire
+  document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  document.cookie = "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+};
+
+// Enhanced API request with token management
+// Cookies are sent automatically with credentials: "include"
+// Authorization header is kept as fallback for compatibility
+const apiRequest = async (
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<any> => {
+  const token = getToken();
+  
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  // Add Authorization header as fallback (cookies are primary)
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      credentials: "include", // This automatically sends cookies
+      headers,
     });
+
+    // Handle token refresh on 401
+    if (res.status === 401) {
+      // Try to refresh using cookie (preferred) or localStorage fallback
+      const refreshToken = localStorage.getItem("refreshToken");
+      
+      if (refreshToken) {
+        try {
+          const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+            method: "POST",
+            credentials: "include", // This sends cookies automatically
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+          });
+
+          if (refreshRes.ok) {
+            const { token: newToken } = await refreshRes.json();
+            // Cookie is automatically set by backend, but store in localStorage as fallback
+            setToken(newToken);
+            // Retry original request - cookies will be sent automatically
+            const retryRes = await fetch(`${API_URL}${endpoint}`, {
+              ...options,
+              credentials: "include", // This sends the new cookie automatically
+              headers: {
+                ...headers,
+                // Also include in Authorization header as fallback
+                Authorization: `Bearer ${newToken}`,
+              },
+            });
+            const retryData = await retryRes.json();
+            if (!retryRes.ok) throw new Error(retryData?.error || "Request failed");
+            return retryData;
+          } else {
+            removeToken();
+            window.location.href = "/auth";
+            throw new Error("Session expired. Please log in again.");
+          }
+        } catch (refreshError) {
+          removeToken();
+          window.location.href = "/auth";
+          throw new Error("Session expired. Please log in again.");
+        }
+      } else {
+        removeToken();
+        window.location.href = "/auth";
+        throw new Error("Authentication required");
+      }
+    }
 
     let data;
     try {
-        data = await res.json();
+      data = await res.json();
     } catch {
-        data = await res.text();
+      const text = await res.text();
+      data = text || {};
     }
 
-    if (!res.ok) throw new Error(data?.error || data || "Request failed");
+    if (!res.ok) {
+      throw new Error(data?.error || data?.message || "Request failed");
+    }
+
     return data;
-}
+  } catch (error: any) {
+    if (error.message.includes("Session expired") || error.message.includes("Authentication required")) {
+      throw error;
+    }
+    throw new Error(error.message || "Network error occurred");
+  }
+};
+
+// Auth API
+export const authAPI = {
+  requestMagicLink: async (name: string, email: string) => {
+    return apiRequest("/auth", {
+      method: "POST",
+      body: JSON.stringify({ name, email }),
+    });
+  },
+
+  verifyMagicLink: async (token: string) => {
+    const data = await apiRequest("/auth/verify", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+    // Cookies are set by backend automatically via Set-Cookie header
+    // Store tokens in localStorage as fallback for Authorization header
+    if (data.accessToken) {
+      setToken(data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
+    }
+    return data;
+  },
+
+  getCurrentUser: async () => {
+    return apiRequest("/auth/me");
+  },
+
+  refreshToken: async (refreshToken: string) => {
+    const data = await apiRequest("/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken }),
+    });
+    // Cookie is set by backend automatically via Set-Cookie header
+    // Store in localStorage as fallback
+    if (data.token) {
+      setToken(data.token);
+    }
+    return data;
+  },
+
+  logout: async () => {
+    try {
+      // Call backend to clear cookies
+      await apiRequest("/auth/logout", {
+        method: "POST",
+      });
+    } catch (error) {
+      // Even if backend call fails, clear local storage
+      console.error("Logout error:", error);
+    } finally {
+      // Always clear local storage and cookies
+      removeToken();
+    }
+  },
+};
+
+// Agents API
+export const agentsAPI = {
+  list: async () => {
+    return apiRequest("/agents");
+  },
+
+  get: async (id: string) => {
+    return apiRequest(`/agents/${id}`);
+  },
+
+  create: async (agentData: {
+    name: string;
+    description?: string;
+    systemPrompt?: string;
+    tools?: string[];
+    integrations?: Array<{ name: string; integrationId: string }>;
+    schedule?: {
+      enabled: boolean;
+      intervalMinutes?: number;
+      cron?: string;
+    };
+    model?: string;
+  }) => {
+    return apiRequest("/agents", {
+      method: "POST",
+      body: JSON.stringify(agentData),
+    });
+  },
+
+  update: async (id: string, agentData: Partial<typeof agentsAPI.create extends (...args: any[]) => Promise<infer T> ? T : never>) => {
+    return apiRequest(`/agents/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(agentData),
+    });
+  },
+
+  delete: async (id: string) => {
+    return apiRequest(`/agents/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  run: async (id: string) => {
+    return apiRequest(`/agents/${id}/run`, {
+      method: "POST",
+    });
+  },
+
+  getStatus: async (id: string) => {
+    return apiRequest(`/agents/${id}/status`);
+  },
+
+  chat: async (id: string, message: string, threadId?: string) => {
+    return apiRequest(`/agents/${id}/chat`, {
+      method: "POST",
+      body: JSON.stringify({ message, threadId }),
+    });
+  },
+
+  getConversations: async (id: string) => {
+    return apiRequest(`/agents/${id}/conversations`);
+  },
+
+  getConversation: async (id: string, threadId: string) => {
+    return apiRequest(`/agents/${id}/conversations/${threadId}`);
+  },
+};
+
+// OAuth API
+export const oauthAPI = {
+  getAuthUrl: async (provider: string) => {
+    return apiRequest(`/oauth/${provider}/auth-url`);
+  },
+
+  callback: async (provider: string, code: string) => {
+    return apiRequest(`/oauth/${provider}/callback`, {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+  },
+
+  listIntegrations: async () => {
+    return apiRequest("/oauth/integrations");
+  },
+
+  disconnect: async (integrationId: string) => {
+    return apiRequest(`/oauth/integrations/${integrationId}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+// Chat API (main agent chat)
+export const chatAPI = {
+  send: async (message: string) => {
+    return apiRequest("/agents/chat", {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+  },
+};
 
 export default apiRequest;
