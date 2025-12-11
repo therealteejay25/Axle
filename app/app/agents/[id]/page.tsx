@@ -54,23 +54,23 @@ const AgentDetailPage = () => {
     }
   }, [agentId]);
 
-  const loadAgent = async () => {
-    try {
-      setLoading(true);
-      const data = await agentsAPI.get(agentId);
-      setAgent(data.agent);
-      setFormData({
-        name: data.agent.name || "",
-        description: data.agent.description || "",
-        systemPrompt: data.agent.systemPrompt || "",
-      });
-    } catch (error) {
-      showToast((error as Error).message || "Failed to load agent", "error");
-      router.push("/app/agents");
-    } finally {
-      setLoading(false);
-    }
-  };
+ const loadAgent = async () => {
+  try {
+    setLoading(true);
+    const data = await agentsAPI.get(agentId); // returns Agent
+    setAgent(data); // <-- use data directly
+    setFormData({
+      name: data.name || "",
+      description: data.description || "",
+      systemPrompt: data.systemPrompt || "",
+    });
+  } catch (error) {
+    showToast((error as Error).message || "Failed to load agent", "error");
+    router.push("/app/agents");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSave = async () => {
     if (!agent) return;
@@ -148,18 +148,15 @@ const AgentDetailPage = () => {
     if (!agent) return;
     if (!confirm("Are you sure you want to delete this agent?")) return;
 
-   try {
-  await agentsAPI.delete(agent._id);
-  showToast("Agent deleted successfully", "success");
-  router.push("/app/agents");
-} catch (error) {
-  const message =
-    error instanceof Error
-      ? error.message
-      : "Failed to delete agent";
-  showToast(message, "error");
-}
-
+    try {
+      await agentsAPI.delete(agent._id);
+      showToast("Agent deleted successfully", "success");
+      router.push("/app/agents");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to delete agent";
+      showToast(message, "error");
+    }
   };
 
   const getStatusColor = () => {

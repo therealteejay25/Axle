@@ -34,7 +34,9 @@ const Authpage = () => {
       showToast("Magic link sent! Check your email.", "success");
       router.push("/auth/success");
     } catch (err) {
-      showToast(err.message || "Failed to send magic link", "error");
+      const message =
+        err instanceof Error ? err.message : "Failed to send magic link";
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }

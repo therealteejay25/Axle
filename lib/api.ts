@@ -42,13 +42,13 @@ const apiRequest = async (
   options: RequestInit = {}
 ): Promise<any> => {
   const token = getToken();
-  
-  const headers: HeadersInit = {
+
+  // Use a plain object for headers so we can safely assign Authorization
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers || {}),
+    ...(options.headers as Record<string, string>),
   };
 
-  // Add Authorization header as fallback (cookies are primary)
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -56,38 +56,37 @@ const apiRequest = async (
   try {
     const res = await fetch(`${API_URL}${endpoint}`, {
       ...options,
-      credentials: "include", // This automatically sends cookies
+      credentials: "include",
       headers,
     });
 
-    // Handle token refresh on 401
+    // Handle 401 and token refresh
     if (res.status === 401) {
-      // Try to refresh using cookie (preferred) or localStorage fallback
       const refreshToken = localStorage.getItem("refreshToken");
-      
+
       if (refreshToken) {
         try {
           const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
             method: "POST",
-            credentials: "include", // This sends cookies automatically
+            credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ refreshToken }),
           });
 
           if (refreshRes.ok) {
             const { token: newToken } = await refreshRes.json();
-            // Cookie is automatically set by backend, but store in localStorage as fallback
             setToken(newToken);
-            // Retry original request - cookies will be sent automatically
+
+            // Retry original request
             const retryRes = await fetch(`${API_URL}${endpoint}`, {
               ...options,
-              credentials: "include", // This sends the new cookie automatically
+              credentials: "include",
               headers: {
                 ...headers,
-                // Also include in Authorization header as fallback
                 Authorization: `Bearer ${newToken}`,
               },
             });
+
             const retryData = await retryRes.json();
             if (!retryRes.ok) throw new Error(retryData?.error || "Request failed");
             return retryData;
@@ -96,7 +95,7 @@ const apiRequest = async (
             window.location.href = "/auth";
             throw new Error("Session expired. Please log in again.");
           }
-        } catch (refreshError) {
+        } catch {
           removeToken();
           window.location.href = "/auth";
           throw new Error("Session expired. Please log in again.");
@@ -108,7 +107,7 @@ const apiRequest = async (
       }
     }
 
-    let data;
+    let data: any;
     try {
       data = await res.json();
     } catch {
@@ -122,10 +121,11 @@ const apiRequest = async (
 
     return data;
   } catch (error: any) {
-    if (error.message.includes("Session expired") || error.message.includes("Authentication required")) {
-      throw error;
-    }
-    throw new Error(error.message || "Network error occurred");
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Network error occurred";
+    throw new Error(message);
   }
 };
 
@@ -187,70 +187,77 @@ export const authAPI = {
   },
 };
 
-// Agents API
+// Types for agent data
+export type AgentCreateData = {
+  name: string;
+  description?: string;
+  systemPrompt?: string;
+  tools?: string[];
+  integrations?: Array<{ name: string; integrationId: string }>;
+  schedule?: {
+    enabled: boolean;
+    intervalMinutes?: number;
+    cron?: string;
+  };
+  model?: string;
+};
+
+export type AgentUpdateData = Partial<AgentCreateData>;
+
+// Optional: Type for agent response
+export type Agent = AgentCreateData & { id: string; createdAt: string; updatedAt: string };
+
 export const agentsAPI = {
-  list: async () => {
+  list: async (): Promise<Agent[]> => {
     return apiRequest("/agents");
   },
 
-  get: async (id: string) => {
+  get: async (id: string): Promise<Agent> => {
     return apiRequest(`/agents/${id}`);
   },
 
-  create: async (agentData: {
-    name: string;
-    description?: string;
-    systemPrompt?: string;
-    tools?: string[];
-    integrations?: Array<{ name: string; integrationId: string }>;
-    schedule?: {
-      enabled: boolean;
-      intervalMinutes?: number;
-      cron?: string;
-    };
-    model?: string;
-  }) => {
+  create: async (agentData: AgentCreateData): Promise<Agent> => {
     return apiRequest("/agents", {
       method: "POST",
       body: JSON.stringify(agentData),
     });
   },
 
-  update: async (id: string, agentData: Partial<typeof agentsAPI.create extends (...args: any[]) => Promise<infer T> ? T : never>) => {
+  update: async (id: string, agentData: AgentUpdateData): Promise<Agent> => {
     return apiRequest(`/agents/${id}`, {
       method: "PATCH",
       body: JSON.stringify(agentData),
     });
   },
 
-  delete: async (id: string) => {
+  delete: async (id: string): Promise<{ success: boolean }> => {
     return apiRequest(`/agents/${id}`, {
       method: "DELETE",
     });
   },
 
-  run: async (id: string) => {
+  run: async (id: string): Promise<any> => {
     return apiRequest(`/agents/${id}/run`, {
       method: "POST",
     });
   },
 
-  getStatus: async (id: string) => {
+  getStatus: async (id: string): Promise<{ status: string }> => {
     return apiRequest(`/agents/${id}/status`);
   },
 
-  chat: async (id: string, message: string, threadId?: string) => {
+  chat: async (id: string, message: string, threadId?: string): Promise<any> => {
     return apiRequest(`/agents/${id}/chat`, {
       method: "POST",
       body: JSON.stringify({ message, threadId }),
     });
   },
 
-  getConversations: async (id: string) => {
+  getConversations: async (id: string): Promise<any[]> => {
     return apiRequest(`/agents/${id}/conversations`);
   },
 
-  getConversation: async (id: string, threadId: string) => {
+  getConversation: async (id: string, threadId: string): Promise<any> => {
     return apiRequest(`/agents/${id}/conversations/${threadId}`);
   },
 };
