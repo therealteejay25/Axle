@@ -34,8 +34,9 @@ const AgentsGrid = () => {
   const loadAgents = async () => {
     try {
       setLoading(true);
-      const data = await agentsAPI.list();
-      setAgents(data.agents || []);
+      // ✅ agentsAPI.list() now directly returns Agent[]
+      const data: Agent[] = await agentsAPI.list();
+      setAgents(data || []);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to load agents";

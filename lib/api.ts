@@ -204,8 +204,12 @@ export type AgentCreateData = {
 
 export type AgentUpdateData = Partial<AgentCreateData>;
 
-// Optional: Type for agent response
-export type Agent = AgentCreateData & { id: string; createdAt: string; updatedAt: string };
+// ✅ Fixed: Type for agent response with `_id`
+export type Agent = AgentCreateData & {
+  _id: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export const agentsAPI = {
   list: async (): Promise<Agent[]> => {

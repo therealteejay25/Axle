@@ -15,7 +15,6 @@ import {
 import Link from "next/link";
 import { agentsAPI } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
-
 interface Agent {
   _id: string;
   name: string;
@@ -57,8 +56,8 @@ const AgentDetailPage = () => {
   const loadAgent = async () => {
     try {
       setLoading(true);
-      const data: Agent = await agentsAPI.get(agentId); // returns Agent
-      setAgent(data); // directly set the agent state
+      const data: Agent = await agentsAPI.get(agentId); // returns Agent with _id
+      setAgent(data);
       setFormData({
         name: data.name || "",
         description: data.description || "",
@@ -118,6 +117,8 @@ const AgentDetailPage = () => {
         !agent.schedule?.enabled ? "Agent enabled" : "Agent disabled",
         "success"
       );
+      // reload to reflect state
+      loadAgent();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to update agent";
@@ -199,7 +200,7 @@ const AgentDetailPage = () => {
   const createdAt = agent.createdAt
     ? new Date(agent.createdAt).toLocaleDateString()
     : "Unknown";
-
+    
   return (
     <div className="min-h-screen bg-[#000]">
       <div className="max-w-7xl mx-auto p-10">
