@@ -39,7 +39,7 @@ const Page = () => {
     try {
       setLoading(true);
       const data = await agentsAPI.list();
-      setAgents(data.agents || []);
+      setAgents(data || []);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to load agents";
