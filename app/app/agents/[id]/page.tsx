@@ -35,6 +35,7 @@ const AgentDetailPage = () => {
   const router = useRouter();
   const { showToast } = useToast();
   const agentId = params?.id as string;
+  console.log(agentId)
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,13 +52,15 @@ const AgentDetailPage = () => {
     if (agentId) {
       loadAgent();
     }
-  }, [agentId]);
+  }, [agentId,]);
 
   const loadAgent = async () => {
     try {
       setLoading(true);
-      const data: Agent = await agentsAPI.get(agentId); // returns Agent with _id
-      setAgent(data);
+      const data = await agentsAPI.get(agentId); // returns Agent with _id
+      const resData = data.agent!;
+      console.log(data)
+      setAgent(resData);
       setFormData({
         name: data.name || "",
         description: data.description || "",

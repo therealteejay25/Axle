@@ -19,7 +19,7 @@ interface CreateAgentModalProps {
   onSuccess: () => void;
 }
 
-const availableTools = [
+const availableIntegrations = [
   { id: "github", name: "GitHub", icon: GithubLogo, color: "text-gray-400" },
   { id: "slack", name: "Slack", icon: SlackLogo, color: "text-purple-400" },
   { id: "google", name: "Google", icon: GoogleLogo, color: "text-blue-400" },
@@ -39,7 +39,8 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
     name: "",
     description: "",
     systemPrompt: "",
-    tools: [] as string[],
+    tools: "*",
+    integrations: [] as string[],
     schedule: {
       enabled: false,
       intervalMinutes: 5,
@@ -58,7 +59,7 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
         name: formData.name,
         description: formData.description,
         systemPrompt: formData.systemPrompt || formData.description,
-        tools: formData.tools,
+        integrations: formData.integrations,
         schedule: formData.schedule,
       });
 
