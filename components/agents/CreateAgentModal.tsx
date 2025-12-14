@@ -59,7 +59,13 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
         name: formData.name,
         description: formData.description,
         systemPrompt: formData.systemPrompt || formData.description,
-        integrations: formData.integrations,
+        integrations: formData.integrations.map((id) => {
+          const integration = availableIntegrations.find((int) => int.id === id);
+          return {
+            name: integration?.name || id,
+            integrationId: id,
+          };
+        }),
         schedule: formData.schedule,
       });
 
@@ -71,7 +77,8 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
         name: "",
         description: "",
         systemPrompt: "",
-        tools: [],
+        tools: "*",
+        integrations: [],
         schedule: { enabled: false, intervalMinutes: 5 },
       });
     } catch (error: any) {
@@ -81,12 +88,12 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
     }
   };
 
-  const toggleTool = (toolId: string) => {
+  const toggleIntegration = (integrationId: string) => {
     setFormData((prev) => ({
       ...prev,
-      tools: prev.tools.includes(toolId)
-        ? prev.tools.filter((t) => t !== toolId)
-        : [...prev.tools, toolId],
+      integrations: prev.integrations.includes(integrationId)
+        ? prev.integrations.filter((id) => id !== integrationId)
+        : [...prev.integrations, integrationId],
     }));
   };
 
@@ -196,15 +203,15 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
                 Select Tools & Integrations
               </label>
               <div className="grid grid-cols-2 gap-3">
-                {availableTools.map((tool) => {
-                  const Icon = tool.icon;
-                  const isSelected = formData.tools.includes(tool.id);
+                {availableIntegrations.map((integration) => {
+                  const Icon = integration.icon;
+                  const isSelected = formData.integrations.includes(integration.id);
                   return (
                     <motion.button
-                      key={tool.id}
+                      key={integration.id}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => toggleTool(tool.id)}
+                      onClick={() => toggleIntegration(integration.id)}
                       className={`p-4 rounded-2xl border-2 transition-all ${
                         isSelected
                           ? "bg-base/20 border-base"
@@ -212,8 +219,8 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <Icon size={24} className={tool.color} />
-                        <span className="text-white font-medium">{tool.name}</span>
+                        <Icon size={24} className={integration.color} />
+                        <span className="text-white font-medium">{integration.name}</span>
                         {isSelected && (
                           <motion.div
                             initial={{ scale: 0 }}
