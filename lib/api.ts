@@ -1,4 +1,5 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 // Cookie helper functions
 const getCookie = (name: string): string | null => {
@@ -30,8 +31,10 @@ const removeToken = () => {
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
   // Clear cookies by setting them to expire
-  document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-  document.cookie = "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  document.cookie =
+    "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  document.cookie =
+    "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 };
 
 // Enhanced API request with token management
@@ -88,7 +91,8 @@ const apiRequest = async (
             });
 
             const retryData = await retryRes.json();
-            if (!retryRes.ok) throw new Error(retryData?.error || "Request failed");
+            if (!retryRes.ok)
+              throw new Error(retryData?.error || "Request failed");
             return retryData;
           } else {
             removeToken();
@@ -120,11 +124,9 @@ const apiRequest = async (
     }
 
     return data;
-  } catch (error: any) {
+  } catch (error) {
     const message =
-      error instanceof Error
-        ? error.message
-        : "Network error occurred";
+      error instanceof Error ? error.message : "Network error occurred";
     throw new Error(message);
   }
 };
@@ -250,7 +252,11 @@ export const agentsAPI = {
     return apiRequest(`/agents/${id}/status`);
   },
 
-  chat: async (id: string, message: string, threadId?: string): Promise<any> => {
+  chat: async (
+    id: string,
+    message: string,
+    threadId?: string
+  ): Promise<any> => {
     return apiRequest(`/agents/${id}/chat`, {
       method: "POST",
       body: JSON.stringify({ message, threadId }),
@@ -296,6 +302,38 @@ export const chatAPI = {
     return apiRequest("/agents/chat", {
       method: "POST",
       body: JSON.stringify({ message }),
+    });
+  },
+};
+
+// Logs and Reports API
+export const logsAPI = {
+  getAgentLogs: async (agentId: string, limit: number = 50): Promise<any> => {
+    return apiRequest(`/logs/agents/${agentId}/logs?limit=${limit}`);
+  },
+
+  getAllLogs: async (limit: number = 100): Promise<any> => {
+    return apiRequest(`/logs/all?limit=${limit}`);
+  },
+
+  getAgentReport: async (agentId: string): Promise<any> => {
+    return apiRequest(`/logs/agents/${agentId}/report`);
+  },
+
+  getAllReports: async (): Promise<any> => {
+    return apiRequest("/logs/reports");
+  },
+
+  getInsights: async (agentId?: string): Promise<any> => {
+    if (agentId) {
+      return apiRequest(`/logs/insights?agentId=${agentId}`);
+    }
+    return apiRequest("/logs/insights");
+  },
+
+  clearAgentLogs: async (agentId: string): Promise<any> => {
+    return apiRequest(`/logs/agents/${agentId}/logs`, {
+      method: "DELETE",
     });
   },
 };

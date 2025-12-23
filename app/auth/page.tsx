@@ -1,4 +1,58 @@
 "use client";
+import React, { useState } from "react";
+
+export default function AuthPage() {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [status, setStatus] = useState("");
+
+  async function requestMagic(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus("Sending...");
+    try {
+      const res = await fetch("/api/v1/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name }),
+      });
+      if (res.ok) setStatus("Magic link sent if the email exists.");
+      else setStatus("Failed to send magic link.");
+    } catch (err) {
+      setStatus("Error sending request");
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="w-full max-w-md bg-white p-6 rounded shadow">
+        <h2 className="text-xl font-semibold mb-4">
+          Sign in or Create account
+        </h2>
+        <form onSubmit={requestMagic} className="space-y-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            className="w-full border px-3 py-2 rounded"
+          />
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full border px-3 py-2 rounded"
+          />
+          <div className="flex justify-end">
+            <button className="px-4 py-2 bg-violet-600 text-white rounded">
+              Send magic link
+            </button>
+          </div>
+        </form>
+        {status && <div className="mt-3 text-sm text-slate-500">{status}</div>}
+      </div>
+    </div>
+  );
+}
+"use client";
 import { EnvelopeIcon, UserIcon } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";

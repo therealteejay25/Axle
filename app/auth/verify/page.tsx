@@ -1,4 +1,43 @@
 "use client";
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+export default function VerifyPage() {
+  const [status, setStatus] = useState("Verifying...");
+  const params = useSearchParams();
+  const token = params.get("token") || "";
+
+  useEffect(() => {
+    async function verify() {
+      try {
+        const res = await fetch("/api/v1/auth/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        if (res.ok) {
+          setStatus("Signed in — you may close this window.");
+        } else {
+          setStatus("Verification failed.");
+        }
+      } catch (err) {
+        setStatus("Error verifying token.");
+      }
+    }
+    if (token) verify();
+    else setStatus("No token provided.");
+  }, [token]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="w-full max-w-md bg-white p-6 rounded shadow text-center">
+        <h2 className="text-lg font-semibold mb-4">Verifying...</h2>
+        <p>{status}</p>
+      </div>
+    </div>
+  );
+}
+"use client";
 import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -12,7 +51,9 @@ const VerifyContent = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast } = useToast();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading"
+  );
   const [message, setMessage] = useState("Verifying your magic link...");
 
   useEffect(() => {
@@ -32,7 +73,7 @@ const VerifyContent = () => {
         setTimeout(() => {
           router.push("/app");
         }, 2000);
-      } catch (error: any) {
+      } catch (error) {
         setStatus("error");
         setMessage(error.message || "Verification failed");
         showToast(error.message || "Verification failed", "error");
@@ -126,4 +167,3 @@ const VerifyPage = () => {
 };
 
 export default VerifyPage;
-
