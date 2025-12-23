@@ -6,6 +6,9 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 export const metadata: Metadata = {
   title: "Axle",
   description: "Your AI Logic Companion",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

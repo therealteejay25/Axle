@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
+import { LinkBreakIcon } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
-
+import Link from "next/link";
 const Header = () => {
   return (
     <header className="flex justify-between items-center w-full py-6 px-20">
@@ -24,9 +25,9 @@ const Header = () => {
         <a href="#" className="hover:text-base transition-colors">
           Pricing
         </a>
-        <Button className="bg-base text-white font-semibold text-[16px] rounded-full px-9 py-6 hover:bg-base transition-all">
+        <Link href="/auth" className="bg-base text-white font-semibold text-[16px] rounded-full px-9 py-4 hover:bg-base transition-all">
           Check it out
-        </Button>
+        </Link >
       </nav>
     </header>
   );

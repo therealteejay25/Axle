@@ -160,7 +160,7 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
     description: "",
     systemPrompt: "",
     tools: "*",
-    integrations: [],
+    integrations: [] as string[],
     schedule: {
       enabled: false,
       intervalMinutes: 5,
@@ -231,11 +231,13 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
         description: "",
         systemPrompt: "",
         tools: "*",
-        integrations: [],
+        integrations: [] as string[],
         schedule: { enabled: false, intervalMinutes: 5 },
       });
     } catch (error) {
-      showToast(error.message || "Failed to create agent", "error");
+      const message =
+        error instanceof Error ? error.message : "Failed to create agent";
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }

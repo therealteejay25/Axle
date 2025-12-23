@@ -54,18 +54,8 @@ const Page = () => {
   const loadPageData = async () => {
     try {
       setLoading(true);
-      const [agentsData, insightsData, logsData] = await Promise.all([
-        agentsAPI.list(),
-        logsAPI.getInsights(),
-        logsAPI.getAllLogs(10),
-      ]);
-
-      const agentsList = Array.isArray(agentsData)
-        ? agentsData
-        : agentsData.agents || [];
-      setAgents(agentsList);
-      setInsights(insightsData.agentInsights || []);
-      setRecentLogs(logsData.logs || []);
+      const data = await agentsAPI.list();
+      setAgents(data);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to load page data";
