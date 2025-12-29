@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import Header from "@/components/header";
+import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PaperPlaneRight } from "@phosphor-icons/react";
@@ -11,7 +11,6 @@ const Home = () => {
   return (
     <>
       <div className="flex flex-col items-center justify-center text-center bg-black text-white relative overflow-hidden">
-        <Header />
 
         <div className="flex items-center space-x-3 bg-white/5 border border-white/10 px-5 py-3 rounded-full mb-6 shadow-md">
           <div className="flex -space-x-2">

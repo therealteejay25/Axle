@@ -1,341 +1,281 @@
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+// API Configuration
+const API_BASE_URL = 'http://localhost:7000/api/v1';
 
-// Cookie helper functions
-const getCookie = (name: string): string | null => {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
-  return null;
-};
-
-// Token management - cookies are primary, localStorage as fallback
+// Token storage
 const getToken = () => {
-  if (typeof window === "undefined") return null;
-  // Try to get from cookie first (if available in client-side)
-  // Note: HttpOnly cookies can't be read by JS, so we rely on the server
-  // For client-side, we'll use localStorage as a fallback for Authorization header
-  return localStorage.getItem("accessToken");
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('axle_access_token');
 };
 
 const setToken = (token: string) => {
-  if (typeof window === "undefined") return;
-  // Store in localStorage as fallback for Authorization header
-  // The actual secure token is in HTTP-only cookie set by backend
-  localStorage.setItem("accessToken", token);
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('axle_access_token', token);
 };
 
-const removeToken = () => {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("refreshToken");
-  // Clear cookies by setting them to expire
-  document.cookie =
-    "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-  document.cookie =
-    "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+const clearToken = () => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('axle_access_token');
 };
 
-// Enhanced API request with token management
-// Cookies are sent automatically with credentials: "include"
-// Authorization header is kept as fallback for compatibility
-const apiRequest = async (
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<any> => {
-  const token = getToken();
+// API Client - FIXED to match actual backend
+class ApiClient {
+  private baseURL: string;
 
-  // Use a plain object for headers so we can safely assign Authorization
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(options.headers as Record<string, string>),
-  };
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  constructor(baseURL: string) {
+    this.baseURL = baseURL;
   }
 
-  try {
-    const res = await fetch(`${API_URL}${endpoint}`, {
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const token = getToken();
+    
+    const config: RequestInit = {
       ...options,
-      credentials: "include",
-      headers,
-    });
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers,
+      },
+    };
 
-    // Handle 401 and token refresh
-    if (res.status === 401) {
-      const refreshToken = localStorage.getItem("refreshToken");
-
-      if (refreshToken) {
-        try {
-          const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refreshToken }),
-          });
-
-          if (refreshRes.ok) {
-            const { token: newToken } = await refreshRes.json();
-            setToken(newToken);
-
-            // Retry original request
-            const retryRes = await fetch(`${API_URL}${endpoint}`, {
-              ...options,
-              credentials: "include",
-              headers: {
-                ...headers,
-                Authorization: `Bearer ${newToken}`,
-              },
-            });
-
-            const retryData = await retryRes.json();
-            if (!retryRes.ok)
-              throw new Error(retryData?.error || "Request failed");
-            return retryData;
-          } else {
-            removeToken();
-            window.location.href = "/auth";
-            throw new Error("Session expired. Please log in again.");
-          }
-        } catch {
-          removeToken();
-          window.location.href = "/auth";
-          throw new Error("Session expired. Please log in again.");
-        }
-      } else {
-        removeToken();
-        window.location.href = "/auth";
-        throw new Error("Authentication required");
-      }
+    const response = await fetch(`${this.baseURL}${endpoint}`, config);
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(error.error || `HTTP ${response.status}`);
     }
 
-    let data: any;
-    try {
-      data = await res.json();
-    } catch {
-      const text = await res.text();
-      data = text || {};
-    }
-
-    if (!res.ok) {
-      throw new Error(data?.error || data?.message || "Request failed");
-    }
-
-    return data;
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Network error occurred";
-    throw new Error(message);
+    return response.json();
   }
-};
 
-// Auth API
-export const authAPI = {
-  requestMagicLink: async (name: string, email: string) => {
-    return apiRequest("/auth", {
-      method: "POST",
-      body: JSON.stringify({ name, email }),
+  // Auth
+  async sendMagicLink(email: string) {
+    return this.request('/auth/magic-link', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
     });
-  },
+  }
 
-  verifyMagicLink: async (token: string) => {
-    const data = await apiRequest("/auth/verify", {
-      method: "POST",
+  async verifyMagicLink(token: string) {
+    const data = await this.request<{ accessToken: string; user: any }>('/auth/verify', {
+      method: 'POST',
       body: JSON.stringify({ token }),
     });
-    // Cookies are set by backend automatically via Set-Cookie header
-    // Store tokens in localStorage as fallback for Authorization header
-    if (data.accessToken) {
-      setToken(data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem("refreshToken", data.refreshToken);
-      }
-    }
+    setToken(data.accessToken);
     return data;
-  },
+  }
 
-  getCurrentUser: async () => {
-    return apiRequest("/auth/me");
-  },
+  // Agents - FIXED
+  async getAgents() {
+    return this.request<{ agents: any[] }>('/agents');
+  }
 
-  refreshToken: async (refreshToken: string) => {
-    const data = await apiRequest("/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify({ refreshToken }),
+  async getAgentStats() {
+    return this.request<{
+      totalAgents: number;
+      activeAgents: number;
+      executionsToday: number;
+      errorsToday: number;
+    }>('/agents/stats');
+  }
+
+  async getAgent(id: string) {
+    return this.request<{ agent: any }>(`/agents/${id}`);
+  }
+
+  async createAgent(data: { name: string; instructions: string; description?: string }) {
+    return this.request<{ agent: any }>('/agents', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
-    // Cookie is set by backend automatically via Set-Cookie header
-    // Store in localStorage as fallback
-    if (data.token) {
-      setToken(data.token);
-    }
-    return data;
-  },
+  }
 
-  logout: async () => {
-    try {
-      // Call backend to clear cookies
-      await apiRequest("/auth/logout", {
-        method: "POST",
-      });
-    } catch (error) {
-      // Even if backend call fails, clear local storage
-      console.error("Logout error:", error);
-    } finally {
-      // Always clear local storage and cookies
-      removeToken();
-    }
-  },
-};
-
-// Types for agent data
-export type AgentCreateData = {
-  name: string;
-  description?: string;
-  systemPrompt?: string;
-  tools?: string[];
-  integrations?: Array<{ name: string; integrationId: string }>;
-  schedule?: {
-    enabled: boolean;
-    intervalMinutes?: number;
-    cron?: string;
-  };
-  model?: string;
-};
-
-export type AgentUpdateData = Partial<AgentCreateData>;
-
-// ✅ Fixed: Type for agent response with `_id`
-export type Agent = AgentCreateData & {
-  _id: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export const agentsAPI = {
-  list: async (): Promise<Agent[]> => {
-    return apiRequest("/agents");
-  },
-
-  get: async (id: string): Promise<Agent> => {
-    return apiRequest(`/agents/${id}`);
-  },
-
-  create: async (agentData: AgentCreateData): Promise<Agent> => {
-    return apiRequest("/agents", {
-      method: "POST",
-      body: JSON.stringify(agentData),
+  async updateAgent(id: string, data: Partial<any>) {
+    return this.request(`/agents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
-  },
+  }
 
-  update: async (id: string, agentData: AgentUpdateData): Promise<Agent> => {
-    return apiRequest(`/agents/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(agentData),
+  async deleteAgent(id: string) {
+    return this.request(`/agents/${id}`, { method: 'DELETE' });
+  }
+
+  async runAgent(id: string, payload: any) {
+    return this.request(`/agents/${id}/run`, {
+      method: 'POST',
+      body: JSON.stringify({ payload }),
     });
-  },
+  }
 
-  delete: async (id: string): Promise<{ success: boolean }> => {
-    return apiRequest(`/agents/${id}`, {
-      method: "DELETE",
+  async previewAgent(id: string, payload: any) {
+    return this.request(`/agents/${id}/preview`, {
+      method: 'POST',
+      body: JSON.stringify({ payload }),
     });
-  },
+  }
 
-  run: async (id: string): Promise<any> => {
-    return apiRequest(`/agents/${id}/run`, {
-      method: "POST",
+  // Triggers - NEW
+  async getTriggers(agentId?: string) {
+    const query = agentId ? `?agentId=${agentId}` : '';
+    return this.request<{ triggers: any[] }>(`/triggers${query}`);
+  }
+
+  async createTrigger(data: any) {
+    return this.request('/triggers', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
-  },
+  }
 
-  getStatus: async (id: string): Promise<{ status: string }> => {
-    return apiRequest(`/agents/${id}/status`);
-  },
-
-  chat: async (
-    id: string,
-    message: string,
-    threadId?: string
-  ): Promise<any> => {
-    return apiRequest(`/agents/${id}/chat`, {
-      method: "POST",
-      body: JSON.stringify({ message, threadId }),
+  async updateTrigger(id: string, data: any) {
+    return this.request(`/triggers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
-  },
+  }
 
-  getConversations: async (id: string): Promise<any[]> => {
-    return apiRequest(`/agents/${id}/conversations`);
-  },
+  async deleteTrigger(id: string) {
+    return this.request(`/triggers/${id}`, { method: 'DELETE' });
+  }
 
-  getConversation: async (id: string, threadId: string): Promise<any> => {
-    return apiRequest(`/agents/${id}/conversations/${threadId}`);
-  },
-};
+  // Executions - FIXED
+  async getExecutions(params?: {
+    agentId?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request<{
+      executions: any[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>(`/executions${query ? `?${query}` : ''}`);
+  }
 
-// OAuth API
-export const oauthAPI = {
-  getAuthUrl: async (provider: string) => {
-    return apiRequest(`/oauth/${provider}/auth-url`);
-  },
+  async getExecution(id: string) {
+    return this.request<any>(`/executions/${id}`);
+  }
 
-  callback: async (provider: string, code: string) => {
-    return apiRequest(`/oauth/${provider}/callback`, {
-      method: "POST",
-      body: JSON.stringify({ code }),
+  async retryExecution(id: string) {
+    return this.request(`/executions/${id}/retry`, { method: 'POST' });
+  }
+
+  // Integrations
+  async getIntegrations() {
+    return this.request<{ integrations: any[] }>('/integrations');
+  }
+
+  async getIntegrationHealth() {
+    return this.request<any>('/integrations/health');
+  }
+
+  async connectIntegration(provider: string) {
+    return this.request<{ url: string }>(`/integrations/${provider}/connect`);
+  }
+
+  async disconnectIntegration(provider: string) {
+    return this.request(`/integrations/${provider}`, { method: 'DELETE' });
+  }
+
+  // Billing
+  async getSubscription() {
+    return this.request<any>('/billing/subscription');
+  }
+
+  async createCheckout(plan: string) {
+    return this.request<{ url: string }>('/billing/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
     });
-  },
+  }
 
-  listIntegrations: async () => {
-    return apiRequest("/oauth/integrations");
-  },
+  async getPortalLink() {
+    return this.request<{ url: string }>('/billing/portal', { method: 'POST' });
+  }
 
-  disconnect: async (integrationId: string) => {
-    return apiRequest(`/oauth/integrations/${integrationId}`, {
-      method: "DELETE",
-    });
-  },
-};
+  async getInvoices() {
+    return this.request<{ invoices: any[] }>('/billing/invoices');
+  }
 
-// Chat API (main agent chat)
-export const chatAPI = {
-  send: async (message: string) => {
-    return apiRequest("/agents/chat", {
-      method: "POST",
+  async getPlans() {
+    return this.request<{ plans: any[] }>('/billing/plans');
+  }
+
+  // Chatbot - FIXED
+  async sendMessage(message: string) {
+    return this.request('/chatbot/message', {
+      method: 'POST',
       body: JSON.stringify({ message }),
     });
-  },
-};
+  }
 
-// Logs and Reports API
-export const logsAPI = {
-  getAgentLogs: async (agentId: string, limit: number = 50): Promise<any> => {
-    return apiRequest(`/logs/agents/${agentId}/logs?limit=${limit}`);
-  },
+  async getChatHistory() {
+    return this.request<{ messages: any[] }>('/chatbot/history');
+  }
 
-  getAllLogs: async (limit: number = 100): Promise<any> => {
-    return apiRequest(`/logs/all?limit=${limit}`);
-  },
+  async clearChatHistory() {
+    return this.request('/chatbot/history', { method: 'DELETE' });
+  }
 
-  getAgentReport: async (agentId: string): Promise<any> => {
-    return apiRequest(`/logs/agents/${agentId}/report`);
-  },
+  // Platform - NEW
+  async getPlatforms() {
+    return this.request<{ platforms: any[] }>('/platform');
+  }
 
-  getAllReports: async (): Promise<any> => {
-    return apiRequest("/logs/reports");
-  },
+  async syncPlatform(provider: string) {
+    return this.request(`/platform/${provider}/sync`, { method: 'POST' });
+  }
 
-  getInsights: async (agentId?: string): Promise<any> => {
-    if (agentId) {
-      return apiRequest(`/logs/insights?agentId=${agentId}`);
-    }
-    return apiRequest("/logs/insights");
-  },
+  // Dashboard - FIXED
+  async getDashboardOverview() {
+    return this.request<any>('/dashboard/overview');
+  }
 
-  clearAgentLogs: async (agentId: string): Promise<any> => {
-    return apiRequest(`/logs/agents/${agentId}/logs`, {
-      method: "DELETE",
+  async getAnalytics(days: number = 30) {
+    return this.request<any>(`/dashboard/analytics?days=${days}`);
+  }
+
+  async getInsights() {
+    return this.request<any>('/dashboard/insights');
+  }
+
+  async getLiveDashboardData() {
+    return this.request<{
+      activeExecutions: any[];
+      recentActivity: any[];
+      nextTriggers: any[];
+    }>('/dashboard/live');
+  }
+
+  async getNotifications() {
+    // Note: Assuming /dashboard/notifications structure for now based on backend change
+    return this.request<{ notifications: any[] }>('/dashboard/notifications');
+  }
+
+  // Profile
+  async getProfile() {
+    return this.request('/profile');
+  }
+
+  async updateProfile(data: any) {
+    return this.request('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
-  },
-};
+  }
 
-export default apiRequest;
+  // Webhooks
+  async getWebhooks() {
+    return this.request<{ webhooks: any[] }>('/webhooks');
+  }
+}
+
+export const api = new ApiClient(API_BASE_URL);
+export { getToken, setToken, clearToken };

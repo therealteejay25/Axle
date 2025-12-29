@@ -1,27 +1,24 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { ToastProvider } from "@/components/ui/toast";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import type { Metadata } from 'next';
+import './globals.css';
+import { ToastProvider } from '@/components/ui/toast';
 
 export const metadata: Metadata = {
-  title: "Axle",
-  description: "Your AI Logic Companion",
-  icons: {
-    icon: "/logo.svg",
-  },
+  title: 'Axle - AI-Powered Workflow Automation',
+  description: 'Create intelligent agents that automate your workflows with 80+ integrations',
+  icons: {icon: [{ url: "/logo.svg", type: "image/svg+xml" }]}
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <body className="antialiased bg-black">
-        <ErrorBoundary>
-          <ToastProvider>{children}</ToastProvider>
-        </ErrorBoundary>
+      <body>
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
