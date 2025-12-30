@@ -7,7 +7,7 @@ export default function Home() {
   return (
     <main className="min-h-screen scroll-smooth bg-black text-white relative overflow-x-hidden selection:bg-green-500/30">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-black/70 backdrop-blur-md">
+      <header className="fixed w-full top-0 z-20 border-b border-black/40 bg-black/20 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
             <Image src="/logo.svg" alt="Axle" width={24} height={24} />
@@ -42,40 +42,42 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <section className="relative border-b border-white/10">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.25),transparent_55%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.25),transparent_55%)]" />
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-4 pb-16 pt-16 md:flex-row md:items-center md:pt-20">
-          <div className="space-y-6 md:w-1/2">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+      <section className="relative py-24 min-h-screen">
+      <div className="pointer-events-none absolute inset-0 bg-[#030303]" />
+      <div className="absolute rounded-full h-100 w-100 bg-base blur-[15rem] -top-20 -left-20"></div>
+      <div className="absolute rounded-full h-100 w-100 bg-base blur-[20rem] -bottom-20 right-30"></div>
+        <div className="relative mx-auto flex max-w-7xl flex-col gap-10 px-4 pb-16 pt-16 md:flex-row md:items-center md:pt-20">
+          <div className="space-y-2 md:w-1/2">
+            <p className="text-xs mb-8 font-semibold w-fit py-2 px-5 rounded-full uppercase bg-white/5 border-2 border-white/2 text-white/50">
               AI agents for real work
             </p>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-[3.4rem]">
               Wire up{" "}
-              <span className="bg-gradient-to-r from-emerald-300 via-sky-300 to-violet-300 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#36B460] to-[#09F858] bg-clip-text text-transparent">
                 Agentic automation
               </span>{" "}
               in minutes.
             </h1>
-            <p className="max-w-xl text-sm text-white/60 md:text-base">
+            <p className="max-w-xl font-medium text-sm text-white/50">
               Axle connects your product, your tools, and your data into a single automation
               layer. Design agents once, then watch every step stream into a live execution
               canvas. No brittle zaps, no black boxes.
             </p>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap mt-6 items-center gap-3">
               <Link
                 href="/auth"
-                className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black hover:bg-white/90"
+                className="rounded-full bg-base px-7 py-3 text-sm font-semibold text-white hover:bg-base/90 cursor-pointer"
               >
                 Get started free
               </Link>
               <a
                 href="#how-it-works"
-                className="text-sm text-white/60 hover:text-white"
+                className="text-sm bg-white/5 px-7 p-3 rounded-full text-white/60 hover:text-white"
               >
                 See how it works →
               </a>
             </div>
-            <div className="flex flex-wrap gap-6 pt-4 text-xs text-white/50">
+            {/* <div className="flex flex-wrap gap-9 pt-10 text-xs text-white/50">
               <div>
                 <div className="text-base font-semibold text-white">80+</div>
                 <div>integrations and actions</div>
@@ -88,12 +90,12 @@ export default function Home() {
                 <div className="text-base font-semibold text-white">Minutes</div>
                 <div>from idea to deployed agent</div>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Right hero panel */}
           <div className="md:w-1/2">
-            <div className="rounded-3xl border border-white/10 bg-black/60 p-4 shadow-[0_0_80px_rgba(34,197,94,0.35)]">
+            <div className="rounded-3xl border-2 border-white/1 bg-white/3 p-4">
               <div className="flex items-center justify-between border-b border-white/10 pb-3 text-xs text-white/50">
                 <span>Execution: Weekly growth review</span>
                 <span className="flex items-center gap-1">
@@ -110,7 +112,7 @@ export default function Home() {
                 ].map((step, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2"
+                    className="flex items-center justify-between rounded-xl bg-white/3 p-3"
                   >
                     <div className="flex items-center gap-2">
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[10px] text-white/70">
@@ -124,13 +126,16 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <div className="mt-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-sky-500/10 p-3 text-[11px] text-white/70">
+              <div className="mt-4 rounded-2xl bg-gradient-to-r from-[#36B460]/10 to-[#09F858]/10 p-3 text-[11px] text-white/70">
                 Axle is orchestrating GitHub, Slack, Gmail and Calendar in an iterative
                 loop reasoning, executing tools, and updating memory automatically.
               </div>
             </div>
           </div>
         </div>
+      </section>
+      <section className="flex w-full mx-auto text-xl items-center max-w-7xl">
+                Trusted by:
       </section>
 
       {/* How it works */}

@@ -64,19 +64,21 @@ export default function IntegrationsPage() {
   async function loadData() {
     try {
       const data = await api.getIntegrations();
-      setIntegrations(data.integrations || []);
+      setIntegrations(data.integrations);
+      console.log(data.integrations)
     } finally {
       setLoading(false);
     }
   }
+  console.log(integrations)
 
   useEffect(() => {
     loadData();
   }, []);
 
   const handleConnect = async (provider: string) => {
-    const { url } = await api.connectIntegration(provider);
-    window.location.href = url;
+    const url = await api.connectIntegration(provider);
+    window.location.href = url.authUrl;
   };
 
   if (loading)
@@ -100,59 +102,68 @@ export default function IntegrationsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {ALL_PROVIDERS.map((app) => {
-          const isConnected = integrations.some(
-            (i) => i.provider === app.provider
-          );
-          const iData = integrations.find((i) => i.provider === app.provider);
+  {ALL_PROVIDERS.map((app) => {
+    const integration = integrations.find(
+      i => i.provider === app.provider
+    );
 
-          return (
-            <Card
-              key={app.name}
-              className="p-6 bg-black/20 border border-black/40 rounded-4xl flex flex-col justify-between transition-all group"
+    const isConnected = integration?.status === "connected";
+
+    return (
+      <Card
+        key={app.provider}
+        className="p-6 bg-black/20 border border-black/40 rounded-4xl flex flex-col justify-between transition-all group"
+      >
+        <div>
+          <div className="flex justify-between items-start mb-6">
+            <div className="p-2.5 bg-white/5 rounded-2xl text-white/60 group-hover:text-white transition-colors">
+              <Image
+                src={app.icon}
+                alt={app.name}
+                height={48}
+                width={48}
+                className="size-9"
+              />
+            </div>
+
+            {isConnected ? (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-base/10 text-base border border-base text-[10px] font-bold tracking-wider uppercase">
+                Connected
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 text-white/30 border border-white/5 text-[10px] font-bold tracking-wider uppercase">
+                Not connected
+              </div>
+            )}
+          </div>
+
+          <h3 className="text-xl font-semibold text-white">
+            {app.name}
+          </h3>
+          <p className="text-sm text-white/40 leading-relaxed">
+            {app.description}
+          </p>
+        </div>
+
+        <div className="pt-6 flex items-center justify-between">
+          {isConnected ? (
+            <button className="text-xs text-white/40 hover:text-white flex items-center gap-1 transition-colors">
+              Manage
+            </button>
+          ) : (
+            <Button
+              onClick={() => handleConnect(app.provider)}
+              className="bg-base cursor-pointer text-black hover:bg-base/90 rounded-full px-4 w-full py-2.5 text-sm"
             >
-              <div>
-                <div className="flex justify-between items-start mb-6">
-                  <div className="p-2.5 bg-white/5 rounded-2xl text-white/60 group-hover:text-white transition-colors">
-                    <Image src={app.icon} alt={app.name} height={48} width={48} className="size-9" />
-                  </div>
-                  {isConnected ? (
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-base/10 text-base border border-base text-[10px] font-bold tracking-wider uppercase">
-                      Connected
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 text-white/30 border border-white/5 text-[10px] font-bold tracking-wider uppercase">
-                      Not connected
-                    </div>
-                  )}
-                </div>
+              Connect
+            </Button>
+          )}
+        </div>
+      </Card>
+    );
+  })}
+</div>
 
-                <h3 className="text-xl font-semibold text-white">
-                  {app.name}
-                </h3>
-                <p className="text-sm text-white/40 leading-relaxed">
-                  {app.description}
-                </p>
-              </div>
-
-              <div className="pt-6 flex items-center justify-between">
-                {isConnected ? (
-                  <button className="text-xs text-white/40 hover:text-white flex items-center gap-1 transition-colors">
-                    Connected
-                  </button>
-                ) : (
-                  <Button
-                    onClick={() => handleConnect(app.provider)}
-                    className="bg-base cursor-pointer text-black hover:bg-base/90 rounded-full px-4 w-full py-2.5 text-sm"
-                  >
-                    Connect
-                  </Button>
-                )}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
     </div>
   );
 }
