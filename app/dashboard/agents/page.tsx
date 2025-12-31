@@ -4,15 +4,20 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Plus, Play, Pause, CaretRight, Robot } from '@phosphor-icons/react';
+import { Plus, Trash, Lightning } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { safeFormatDistanceToNow } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { Skeleton } from '@/components/ui/utils';
+import { RefreshCw } from 'lucide-react';
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [runningId, setRunningId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -32,18 +37,31 @@ export default function AgentsPage() {
     e.preventDefault();
     e.stopPropagation();
     try {
-      // Create a manual execution and redirect to it (or just run in background)
-      // Requirements say "View, Run, Pause" on card.
-      // Usually "Run" opens a dialog or input. 
-      // Requirement "EXECUTION VIEW" implies running takes you there or shows status.
-      // But "AGENT DETAIL" has a "Run Agent" panel.
-      // I'll make "Run" here redirect to the Agent Detail "Run" section or just let them click the card to go to detail.
-      // Let's make "Run" generic for now (maybe skip implementation on list if complex input needed).
-      // Actually, standard Pattern: Click card -> View.
-      // I'll keep the buttons but maybe "Run" redirects to detail page run section.
-      router.push(`/dashboard/agents/${id}`);
+      setRunningId(id);
+      await api.runAgent(id, {});
+      setTimeout(fetchAgents, 800);
     } catch (e) {
       console.error(e);
+    } finally {
+      setRunningId(null);
+    }
+  };
+
+  const handleDeleteAgent = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // const ok = window.confirm('Delete this agent? This will also delete all its triggers and executions.');
+    // if (!ok) return;
+
+    try {
+      setDeletingId(id);
+      await api.deleteAgent(id);
+      setAgents((prev) => prev.filter((a) => a._id !== id));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -55,27 +73,63 @@ export default function AgentsPage() {
     setAgents(agents.map(a => a._id === agent._id ? { ...a, status: newStatus } : a));
   };
 
-  if (loading) return <div className="p-8 text-white/20 animate-pulse">Loading workforce...</div>;
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto space-y-8">
+        <div className="page-loader" style={{ minHeight: 140 }}>
+          <div className="loader-light" />
+          <div className="page-loader-text">Loading workforce…</div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="h-full bg-black/30 border border-black/50 p-6 rounded-4xl">
+              <Skeleton className="h-10 w-10 rounded-full mb-4" />
+              <Skeleton className="h-5 w-40 mb-2" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-3/4" />
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row md:items-end gap-5 justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        className="flex flex-col md:flex-row md:items-end gap-5 justify-between"
+      >
         <div>
           <h1 className="text-3xl font-semibold text-white tracking-tight">Your Agents</h1>
           <p className="text-white/40 mt-0.5">Manage and monitor your AI agents.</p>
         </div>
         <Link href="/dashboard/agents/new">
-          <Button className="bg-base text-black cursor-pointer py-2.5 hover:bg-base/90 rounded-full px-6">
+          <Button className="cursor-pointer py-2.5 rounded-full px-6">
             <Plus weight="bold" className="size-4" />
             New Agent
           </Button>
         </Link>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{
+          hidden: { opacity: 0 },
+          show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+        }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
         {agents.map((agent) => (
-          <Link key={agent._id} href={`/dashboard/agents/${agent._id}`} className="block group">
-            <Card className="h-full bg-black/30 border border-black/50 transition-all p-6 rounded-4xl flex flex-col justify-between">
+          <motion.div
+            key={agent._id}
+            variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+          >
+            <Link href={`/dashboard/agents/${agent._id}`} className="block group">
+              <Card hover className="h-full bg-black/30 border border-black/50 transition-all p-6 rounded-4xl flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-base/5 rounded-full text-white/80 group-hover:text-white group-hover:scale-110 transition-all">
@@ -101,20 +155,30 @@ export default function AgentsPage() {
                 </span>
 
                 <div className="flex mt-4 gap-2 w-full">
-                  {/* <Button
-                    onClick={(e) => toggleStatus(e, agent)}
-                    className="p-3 px-3.5 rounded-full bg-base/10 text-white/60 hover:text-white transition-colors"
-                    title={agent.status === 'active' ? 'Pause' : 'Resume'}
+                  <Button
+                    onClick={(e) => handleRun(e, agent._id)}
+                    className="p-2.5 px-3.5 rounded-full bg-base/10 text-white/80 hover:text-white transition-colors"
+                    title="Run now"
+                    loading={runningId === agent._id}
                   >
-                    {agent.status === 'active' ? <Pause size={16} weight="fill" /> : <Play size={16} weight="fill" />}
-                  </Button> */}
+                    <RefreshCw size={16} weight="fill" />
+                  </Button>
+                  <Button
+                    onClick={(e) => handleDeleteAgent(e, agent._id)}
+                    className="p-2.5 px-3.5 hover:bg-red-500/5 rounded-full bg-red-500/10 text-red-200 hover:text-red-100 border border-red-500/20"
+                    title="Delete"
+                    loading={deletingId === agent._id}
+                  >
+                    <Trash size={16} weight="fill" />
+                  </Button>
                   <Link href={`/dashboard/agents/${agent._id}`} className="p-2.5 items-center justify-center flex font-semibold bg-base rounded-full text-white w-full transition-colors">
                     View Agent
                   </Link>
                 </div>
               </div>
-            </Card>
-          </Link>
+              </Card>
+            </Link>
+          </motion.div>
         ))}
 
         {/* Empty State / Add New Card */}
@@ -124,7 +188,7 @@ export default function AgentsPage() {
             <span className="mt-2 font-medium">Deploy New Agent</span>
           </div>
         </Link>
-      </div>
+      </motion.div>
     </div>
   );
 }

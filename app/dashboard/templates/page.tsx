@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Plus,
   RocketLaunch,
@@ -26,176 +26,84 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import Link from 'next/link';
+import { api } from '@/lib/api';
+import { Skeleton } from '@/components/ui/utils';
 
-const TEMPLATES = [
-  {
-    id: 'product-launch',
-    name: 'Product Launch',
-    category: 'Marketing',
-    description: 'Coordinate cross-channel announcements and PR updates.',
-    icon: <RocketLaunch size={32} weight="duotone" className="text-orange-400" />,
-    color: 'from-orange-500/10 to-transparent'
-  },
-  {
-    id: 'research',
-    name: 'Knowledge Base',
-    category: 'Research',
-    description: 'Synthesize complex topics from web content and documents.',
-    icon: <Binoculars size={32} weight="duotone" className="text-blue-400" />,
-    color: 'from-blue-500/10 to-transparent'
-  },
-  {
-    id: 'github',
-    name: 'Repo Maintainer',
-    category: 'Engineering',
-    description: 'Triage issues, review PRs, and draft release notes.',
-    icon: <GithubLogo size={32} weight="duotone" className="text-white/60" />,
-    color: 'from-white/10 to-transparent'
-  },
-  {
-    id: 'social',
-    name: 'Social Media Manager',
-    category: 'Social',
-    description: 'Manage engagement and post schedules across platforms.',
-    icon: <Globe size={32} weight="duotone" className="text-emerald-400" />,
-    color: 'from-emerald-500/10 to-transparent'
-  },
-  {
-    id: 'executive',
-    name: 'Executive Assistant',
-    category: 'Personal',
-    description: 'Calendar management, email triaging, and briefing.',
-    icon: <UserCircle size={32} weight="duotone" className="text-purple-400" />,
-    color: 'from-purple-500/10 to-transparent'
-  },
-  {
-    id: 'sales-outreach',
-    name: 'Sales Outreach',
-    category: 'Revenue',
-    description: 'Personalized outbound email sequences with follow-ups.',
-    icon: <EnvelopeSimple size={32} weight="duotone" className="text-pink-400" />,
-    color: 'from-pink-500/10 to-transparent'
-  },
-  {
-    id: 'customer-success',
-    name: 'Customer Success Companion',
-    category: 'Customer',
-    description: 'Summarize tickets and propose next-best-actions.',
-    icon: <ChatCircleDots size={32} weight="duotone" className="text-sky-400" />,
-    color: 'from-sky-500/10 to-transparent'
-  },
-  {
-    id: 'growth-analyst',
-    name: 'Growth Analyst',
-    category: 'Analytics',
-    description: 'Monitor key funnel metrics and surface anomalies.',
-    icon: <TrendUp size={32} weight="duotone" className="text-lime-400" />,
-    color: 'from-lime-500/10 to-transparent'
-  },
-  {
-    id: 'meeting-notes',
-    name: 'Meeting Notes Synthesizer',
-    category: 'Productivity',
-    description: 'Turn raw transcripts into action items and briefs.',
-    icon: <Notepad size={32} weight="duotone" className="text-amber-400" />,
-    color: 'from-amber-500/10 to-transparent'
-  },
-  {
-    id: 'release-manager',
-    name: 'Release Manager',
-    category: 'Engineering',
-    description: 'Draft changelogs and coordinate code-freeze windows.',
-    icon: <Code size={32} weight="duotone" className="text-cyan-400" />,
-    color: 'from-cyan-500/10 to-transparent'
-  },
-  {
-    id: 'campaign-orchestrator',
-    name: 'Campaign Orchestrator',
-    category: 'Marketing',
-    description: 'Plan and track omni-channel launch campaigns.',
-    icon: <MegaphoneSimple size={32} weight="duotone" className="text-red-400" />,
-    color: 'from-red-500/10 to-transparent'
-  },
-  {
-    id: 'churn-watcher',
-    name: 'Churn Watcher',
-    category: 'Analytics',
-    description: 'Flag at-risk accounts based on product signals.',
-    icon: <ChartBar size={32} weight="duotone" className="text-fuchsia-400" />,
-    color: 'from-fuchsia-500/10 to-transparent'
-  },
-  {
-    id: 'documentation-buddy',
-    name: 'Documentation Buddy',
-    category: 'Knowledge',
-    description: 'Keep internal docs up to date from code and PRs.',
-    icon: <BookOpen size={32} weight="duotone" className="text-emerald-300" />,
-    color: 'from-emerald-400/10 to-transparent'
-  },
-  {
-    id: 'ops-console',
-    name: 'Ops Console',
-    category: 'Operations',
-    description: 'Daily digests of incidents, SLAs, and queue health.',
-    icon: <Lightning size={32} weight="duotone" className="text-yellow-300" />,
-    color: 'from-yellow-400/10 to-transparent'
-  },
-  {
-    id: 'account-executive',
-    name: 'Account Executive Copilot',
-    category: 'Revenue',
-    description: 'Summarize opps and recommend next actions per deal.',
-    icon: <Buildings size={32} weight="duotone" className="text-indigo-300" />,
-    color: 'from-indigo-400/10 to-transparent'
-  },
-  {
-    id: 'editorial-calendar',
-    name: 'Editorial Calendar',
-    category: 'Content',
-    description: 'Generate and maintain a 30–60 day content calendar.',
-    icon: <CalendarCheck size={32} weight="duotone" className="text-teal-300" />,
-    color: 'from-teal-400/10 to-transparent'
-  },
-  {
-    id: 'ab-testing',
-    name: 'A/B Experiment Monitor',
-    category: 'Product',
-    description: 'Track experiments and summarize winning variants.',
-    icon: <PresentationChart size={32} weight="duotone" className="text-orange-300" />,
-    color: 'from-orange-400/10 to-transparent'
-  },
-  {
-    id: 'checkout-guardian',
-    name: 'Checkout Guardian',
-    category: 'E‑commerce',
-    description: 'Watch cart events and alert on conversion drops.',
-    icon: <ShoppingCartSimple size={32} weight="duotone" className="text-rose-300" />,
-    color: 'from-rose-400/10 to-transparent'
-  },
-  {
-    id: 'power-user-onboarder',
-    name: 'Power User Onboarder',
-    category: 'Customer',
-    description: 'Guide new users through activation milestones.',
-    icon: <Lightning size={32} weight="duotone" className="text-violet-300" />,
-    color: 'from-violet-400/10 to-transparent'
-  },
-  {
-    id: 'ugc-curator',
-    name: 'UGC Curator',
-    category: 'Social',
-    description: 'Collect and rank user‑generated content across channels.',
-    icon: <DeviceMobileCamera size={32} weight="duotone" className="text-sky-300" />,
-    color: 'from-sky-400/10 to-transparent'
-  }
+const iconPalette = [
+  <RocketLaunch key="rocket" size={32} weight="duotone" className="text-orange-400" />,
+  <Binoculars key="binoculars" size={32} weight="duotone" className="text-blue-400" />,
+  <GithubLogo key="github" size={32} weight="duotone" className="text-white/60" />,
+  <Globe key="globe" size={32} weight="duotone" className="text-emerald-400" />,
+  <UserCircle key="user" size={32} weight="duotone" className="text-purple-400" />,
+  <EnvelopeSimple key="email" size={32} weight="duotone" className="text-pink-400" />,
+  <ChatCircleDots key="chat" size={32} weight="duotone" className="text-sky-400" />,
+  <TrendUp key="trend" size={32} weight="duotone" className="text-lime-400" />,
+  <Notepad key="notepad" size={32} weight="duotone" className="text-amber-400" />,
+  <Code key="code" size={32} weight="duotone" className="text-cyan-400" />,
+  <MegaphoneSimple key="megaphone" size={32} weight="duotone" className="text-red-400" />,
+  <ChartBar key="chart" size={32} weight="duotone" className="text-fuchsia-400" />,
+  <BookOpen key="book" size={32} weight="duotone" className="text-emerald-300" />,
+  <Lightning key="bolt" size={32} weight="duotone" className="text-yellow-300" />,
+  <Buildings key="buildings" size={32} weight="duotone" className="text-indigo-300" />,
+  <CalendarCheck key="calendar" size={32} weight="duotone" className="text-teal-300" />,
+  <PresentationChart key="presentation" size={32} weight="duotone" className="text-orange-300" />,
+  <ShoppingCartSimple key="cart" size={32} weight="duotone" className="text-rose-300" />,
+  <DeviceMobileCamera key="mobile" size={32} weight="duotone" className="text-sky-300" />,
+];
+
+const gradientPalette = [
+  'from-orange-500/10 to-transparent',
+  'from-blue-500/10 to-transparent',
+  'from-white/10 to-transparent',
+  'from-emerald-500/10 to-transparent',
+  'from-purple-500/10 to-transparent',
+  'from-pink-500/10 to-transparent',
+  'from-sky-500/10 to-transparent',
+  'from-lime-500/10 to-transparent',
+  'from-amber-500/10 to-transparent',
+  'from-cyan-500/10 to-transparent',
+  'from-red-500/10 to-transparent',
+  'from-fuchsia-500/10 to-transparent',
+  'from-emerald-400/10 to-transparent',
+  'from-yellow-400/10 to-transparent',
+  'from-indigo-400/10 to-transparent',
+  'from-teal-400/10 to-transparent',
+  'from-rose-400/10 to-transparent',
+  'from-violet-400/10 to-transparent'
 ];
 
 export default function TemplatesPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filtered = TEMPLATES.filter(t =>
-    t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.category.toLowerCase().includes(searchTerm.toLowerCase())
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.getTemplates();
+        setTemplates(data.templates || []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const decorated = useMemo(() => {
+    return templates.map((t, idx) => {
+      const icon = iconPalette[idx % iconPalette.length];
+      const color = gradientPalette[idx % gradientPalette.length];
+      const id = encodeURIComponent(t.name);
+      return { ...t, id, icon, color };
+    });
+  }, [templates]);
+
+  const filtered = decorated.filter(t =>
+    (t.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (t.category || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -231,29 +139,49 @@ export default function TemplatesPage() {
         </Link>
 
         {/* Template Cards */}
-        {filtered.map((template) => (
-          <Link key={template.id} href={`/dashboard/agents/new?template=${template.id}`}>
-            <Card className={`h-full bg-gradient-to-b ${template.color} border border-white/5 hover:border-white/10 hover:bg-black/10 transition-all p-8 flex flex-col justify-between rounded-3xl group`}>
-              <div>
-                <div className="mb-6 group-hover:-translate-y-1 transition-transform">
-                  {template.icon}
-                </div>
-                <div className="text-[10px] font-bold tracking-widest text-white/20 uppercase mb-2">
-                  {template.category}
-                </div>
-                <h3 className="text-xl font-medium text-white mb-3">{template.name}</h3>
-                <p className="text-sm text-white/40 leading-relaxed">
-                  {template.description}
-                </p>
+        {loading ? (
+          <>
+            <div className="md:col-span-2 lg:col-span-3">
+              <div className="page-loader" style={{ minHeight: 140 }}>
+                <div className="loader-light" />
+                <div className="page-loader-text">Loading blueprints…</div>
               </div>
+            </div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Card key={i} className="h-full border border-white/5 bg-white/[0.01] p-8 rounded-3xl">
+                <Skeleton className="h-10 w-10 rounded-2xl mb-6" />
+                <Skeleton className="h-3 w-20 mb-3" />
+                <Skeleton className="h-6 w-40 mb-4" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-3/4" />
+              </Card>
+            ))}
+          </>
+        ) : (
+          filtered.map((template) => (
+            <Link key={template.id} href={`/dashboard/agents/new?template=${template.id}`}>
+              <Card hover className={`h-full bg-gradient-to-b ${template.color} border border-white/5 hover:border-white/10 hover:bg-black/10 transition-all p-8 flex flex-col justify-between rounded-3xl group`}>
+                <div>
+                  <div className="mb-6 group-hover:-translate-y-1 transition-transform">
+                    {template.icon}
+                  </div>
+                  <div className="text-[10px] font-bold tracking-widest text-white/20 uppercase mb-2">
+                    {template.category}
+                  </div>
+                  <h3 className="text-xl font-medium text-white mb-3">{template.name}</h3>
+                  <p className="text-sm text-white/40 leading-relaxed">
+                    {template.description}
+                  </p>
+                </div>
 
-              <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-xs font-medium text-white/60">Use Template</span>
-                <Plus size={16} />
-              </div>
-            </Card>
-          </Link>
-        ))}
+                <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-xs font-medium text-white/60">Use Template</span>
+                  <Plus size={16} />
+                </div>
+              </Card>
+            </Link>
+          ))
+        )}
 
       </div>
 

@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/utils';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { Subscription, Plan, Invoice } from '@/types';
+import { motion } from 'framer-motion';
 
 export default function BillingPage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -56,6 +57,10 @@ export default function BillingPage() {
   if (loading) {
     return (
       <div className="space-y-6">
+        <div className="page-loader" style={{ minHeight: 140 }}>
+          <div className="loader-light" />
+          <div className="page-loader-text">Loading billing…</div>
+        </div>
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-24 w-full" />
@@ -69,7 +74,12 @@ export default function BillingPage() {
     100;
 
   return (
-    <div className="max-w-5xl space-y-12">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="max-w-5xl space-y-12"
+    >
       {/* Header */}
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
@@ -79,7 +89,7 @@ export default function BillingPage() {
       </header>
 
       {/* Current Plan */}
-      <Card className="p-6 bg-[#0E0E0E] border border-white/5">
+      <Card hover className="p-6 bg-[#0E0E0E] border border-white/5">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-wide text-white/40 mb-2">
@@ -107,7 +117,7 @@ export default function BillingPage() {
       </Card>
 
       {/* Credits */}
-      <Card className="p-6 bg-[#0E0E0E] border border-white/5">
+      <Card hover className="p-6 bg-[#0E0E0E] border border-white/5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Lightning size={18} className="text-[#36B460]" />
@@ -141,6 +151,7 @@ export default function BillingPage() {
             return (
               <Card
                 key={plan.id}
+                hover
                 className={cn(
                   'p-5 bg-[#0E0E0E] border transition-all',
                   isCurrent
@@ -174,7 +185,7 @@ export default function BillingPage() {
         <section>
           <h3 className="text-lg font-medium mb-4">Invoices</h3>
 
-          <Card className="bg-[#0E0E0E] border border-white/5">
+          <Card hover className="bg-[#0E0E0E] border border-white/5">
             <div className="divide-y divide-white/5">
               {invoices.map((invoice) => (
                 <div
@@ -210,6 +221,6 @@ export default function BillingPage() {
           </Card>
         </section>
       )}
-    </div>
+    </motion.div>
   );
 }

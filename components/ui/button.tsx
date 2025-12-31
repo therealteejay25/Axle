@@ -1,7 +1,7 @@
 'use client';
 
 import { ButtonHTMLAttributes, forwardRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -13,14 +13,14 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, icon, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex text-white items-center justify-center gap-2 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-base/50 disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseStyles = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-base/50 disabled:opacity-50 disabled:cursor-not-allowed';
     
     const variants = {
-      primary: 'bg-base hover:bg-base-hover text-background font-semibold',
-      secondary: 'bg-surface hover:bg-surface/80 text-text border border-border',
-      ghost: 'hover:bg-surface text-text',
+      primary: 'bg-base hover:bg-base-hover text-white font-semibold',
+      secondary: 'bg-base/20 hover:bg-base/30 text-white border border-white/10',
+      ghost: 'bg-base/10 hover:bg-base/20 text-white border border-transparent',
       destructive: 'bg-error hover:bg-error/90 text-white',
-      outline: 'border border-border hover:border-base hover:bg-base/5 text-text',
+      outline: 'bg-base/5 hover:bg-base/10 text-white border border-base/40',
     };
     
     const sizes = {
@@ -30,16 +30,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     return (
-      <button
+      <motion.button
         ref={ref}
-        className={cn(baseStyles, variants[variant], sizes[size], className,"text-white")}
+        whileHover={disabled || loading ? undefined : { y: -1 }}
+        whileTap={disabled || loading ? undefined : { scale: 0.98 }}
+        className={cn(baseStyles, variants[variant], sizes[size], className)}
         disabled={disabled || loading}
         {...props}
       >
-        {loading && <Loader2 className="animate-spin" size={16} />}
+        {loading && <div className="loader-light" />}
         {!loading && icon}
         {children}
-      </button>
+      </motion.button>
     );
   }
 );

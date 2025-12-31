@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7000';
 
 class SocketClient {
   private socket: Socket | null = null;
@@ -47,6 +47,9 @@ class SocketClient {
       return;
     }
 
+    // Join backend room for this agent
+    this.socket.emit('subscribe', agentId);
+
     const events = [
       { name: 'execution:started', callback: callbacks.onExecutionStarted },
       { name: 'execution:action_started', callback: callbacks.onActionStarted },
@@ -56,16 +59,14 @@ class SocketClient {
 
     events.forEach(({ name, callback }) => {
       if (callback && this.socket) {
-        const eventName = `agent:${agentId}:${name}`;
-        this.socket.on(eventName, callback);
+        this.socket.on(name, callback);
       }
     });
 
     return () => {
       events.forEach(({ name, callback }) => {
         if (callback && this.socket) {
-          const eventName = `agent:${agentId}:${name}`;
-          this.socket.off(eventName, callback);
+          this.socket.off(name, callback);
         }
       });
     };

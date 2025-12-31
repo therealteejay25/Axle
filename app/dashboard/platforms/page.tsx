@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Badge, Skeleton } from '@/components/ui/utils';
 import { useToast } from '@/components/ui/toast';
 import { api } from '@/lib/api';
+import { motion } from 'framer-motion';
 
 const PLATFORM_ICONS: Record<string, string> = {
   github: '/github.svg',
@@ -63,6 +64,10 @@ export default function PlatformsPage() {
     return (
       <div>
         <h1 className="text-3xl font-bold mb-8">Platforms</h1>
+        <div className="page-loader" style={{ minHeight: 140 }}>
+          <div className="loader-light" />
+          <div className="page-loader-text">Loading platforms…</div>
+        </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(5)].map((_, i) => (
             <Card key={i} className="p-6">
@@ -87,12 +92,21 @@ export default function PlatformsPage() {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
+        className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+      >
         {platforms.map((platform) => {
           const icon = PLATFORM_ICONS[platform.id] || '/stuff.svg';
           
           return (
-            <Card key={platform.id} hover className="p-6">
+            <motion.div
+              key={platform.id}
+              variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+            >
+              <Card hover className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center">
@@ -139,10 +153,11 @@ export default function PlatformsPage() {
                   </Button>
                 )}
               </div>
-            </Card>
+              </Card>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     </div>
   );
 }

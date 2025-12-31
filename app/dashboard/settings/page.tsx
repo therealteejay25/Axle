@@ -11,25 +11,36 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
+import { motion } from 'framer-motion';
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<any | null>(null);
+  const [overview, setOverview] = useState<any | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [timeZone, setTimeZone] = useState('');
+  const [automaticBackupsEnabled, setAutomaticBackupsEnabled] = useState(true);
+  const [notificationEmailsEnabled, setNotificationEmailsEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const data: any = await api.getProfile();
+        const [data, ov]: any = await Promise.all([
+          api.getProfile(),
+          api.getDashboardOverview()
+        ]);
         const user = data.user || data?.profile || data;
         if (user) {
           setProfile(user);
           setName(user.name || '');
           setEmail(user.email || '');
           setTimeZone(user.timeZone || '');
+          setAutomaticBackupsEnabled(user.automaticBackupsEnabled ?? true);
+          setNotificationEmailsEnabled(user.notificationEmailsEnabled ?? false);
         }
+
+        setOverview(ov?.overview || ov);
       } catch (e) {
         console.error(e);
       }
@@ -40,7 +51,7 @@ export default function SettingsPage() {
   const handleUpdateProfile = async () => {
     setSaving(true);
     try {
-      const payload: any = { name, timeZone };
+      const payload: any = { name, timeZone, automaticBackupsEnabled, notificationEmailsEnabled };
       await api.updateProfile(payload);
     } catch (e) {
       console.error(e);
@@ -49,8 +60,35 @@ export default function SettingsPage() {
     }
   };
 
+  const handleToggleBackups = async () => {
+    const next = !automaticBackupsEnabled;
+    setAutomaticBackupsEnabled(next);
+    try {
+      await api.updateProfile({ automaticBackupsEnabled: next });
+    } catch (e) {
+      console.error(e);
+      setAutomaticBackupsEnabled(!next);
+    }
+  };
+
+  const handleToggleEmails = async () => {
+    const next = !notificationEmailsEnabled;
+    setNotificationEmailsEnabled(next);
+    try {
+      await api.updateProfile({ notificationEmailsEnabled: next });
+    } catch (e) {
+      console.error(e);
+      setNotificationEmailsEnabled(!next);
+    }
+  };
+
   return (
-    <div className="max-w-3xl mx-auto space-y-12 pb-38">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="max-w-3xl mx-auto space-y-12 pb-38"
+    >
 
       <div>
         <h1 className="text-3xl font-light text-white tracking-tight">Settings</h1>
@@ -58,6 +96,43 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-8">
+
+        {/* Account Overview */}
+        {overview && (
+          <section>
+            <div className="flex items-center gap-2 mb-4 text-white/60">
+              <Key size={20} weight="duotone" />
+              <h2 className="text-lg font-medium">Account</h2>
+            </div>
+            <Card className="p-8 bg-white/5 border border-white/5 rounded-2xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
+                  <div className="text-xs uppercase tracking-widest text-white/30">Plan</div>
+                  <div className="text-lg text-white/80 mt-1 capitalize">{overview.currentPlan || overview.plan || 'free'}</div>
+                  <div className="text-xs text-white/30 mt-1">{overview.currentPlanExplained || ''}</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
+                  <div className="text-xs uppercase tracking-widest text-white/30">Subscription</div>
+                  <div className="text-lg text-white/80 mt-1 capitalize">{overview.subscriptionStatus || 'free'}</div>
+                  <div className="text-xs text-white/30 mt-1">Agent limit: {overview.agentLimit ?? '—'}</div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
+                  <div className="text-xs uppercase tracking-widest text-white/30">Credits</div>
+                  <div className="text-lg text-white/80 mt-1">
+                    {overview.creditsRemaining ?? '—'} / {overview.creditsLimit ?? '—'}
+                  </div>
+                  <div className="text-xs text-white/30 mt-1">{overview.creditsExplained || ''}</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
+                  <div className="text-xs uppercase tracking-widest text-white/30">Performance</div>
+                  <div className="text-lg text-white/80 mt-1">{overview.successRate ?? '—'}%</div>
+                  <div className="text-xs text-white/30 mt-1">{overview.successRateExplained || ''}</div>
+                </div>
+              </div>
+            </Card>
+          </section>
+        )}
 
         {/* Profile Section */}
         <section>
@@ -92,10 +167,11 @@ export default function SettingsPage() {
             <div className="flex justify-end pt-4">
               <Button
                 onClick={handleUpdateProfile}
+                loading={saving}
                 disabled={saving}
-                className="bg-base text-black hover:bg-white/90 rounded-full px-8"
+                className="rounded-full px-8"
               >
-                {saving ? 'Saving...' : 'Update Profile'}
+                Update Profile
               </Button>
             </div>
           </Card>
@@ -113,18 +189,28 @@ export default function SettingsPage() {
                 <div className="text-sm font-medium text-white/80">Automatic Backups</div>
                 <div className="text-xs text-white/30">Save agent execution memory once a week.</div>
               </div>
-              <div className="w-12 h-6 bg-emerald-500/20 rounded-full flex items-center px-1">
-                <div className="w-4 h-4 bg-emerald-400 rounded-full ml-auto" />
-              </div>
+              <button
+                type="button"
+                onClick={handleToggleBackups}
+                className={`w-12 h-6 rounded-full flex items-center px-1 transition-colors ${automaticBackupsEnabled ? 'bg-emerald-500/20' : 'bg-white/10'}`}
+                aria-label="Toggle automatic backups"
+              >
+                <div className={`w-4 h-4 rounded-full transition-all ${automaticBackupsEnabled ? 'bg-emerald-400 ml-auto' : 'bg-white/20'}`} />
+              </button>
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium text-white/80">Notification Emails</div>
                 <div className="text-xs text-white/30">Receive summaries of failed executions.</div>
               </div>
-              <div className="w-12 h-6 bg-white/10 rounded-full flex items-center px-1">
-                <div className="w-4 h-4 bg-white/20 rounded-full" />
-              </div>
+              <button
+                type="button"
+                onClick={handleToggleEmails}
+                className={`w-12 h-6 rounded-full flex items-center px-1 transition-colors ${notificationEmailsEnabled ? 'bg-emerald-500/20' : 'bg-white/10'}`}
+                aria-label="Toggle notification emails"
+              >
+                <div className={`w-4 h-4 rounded-full transition-all ${notificationEmailsEnabled ? 'bg-emerald-400 ml-auto' : 'bg-white/20'}`} />
+              </button>
             </div>
           </Card>
         </section>
@@ -146,6 +232,6 @@ export default function SettingsPage() {
         </section>
 
       </div>
-    </div>
+    </motion.div>
   );
 }

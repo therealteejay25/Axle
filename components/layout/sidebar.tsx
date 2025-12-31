@@ -18,7 +18,7 @@ const navigation = [
   { name: 'Agents', href: '/dashboard/agents', icon: CpuIcon },
   { name: 'Templates', href: '/dashboard/templates', icon: PuzzlePiece },
   { name: 'Integrations', href: '/dashboard/integrations', icon: PlugsIcon },
-  { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
+  // { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
   { name: 'Settings', href: '/dashboard/settings', icon: Gear },
 ];
 

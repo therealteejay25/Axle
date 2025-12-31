@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface CardProps {
@@ -17,18 +18,26 @@ export function Card({ children, className, variant = 'default', hover = false }
     gradient: 'gradient-border',
   };
 
-  return (
-    <div
-      className={cn(
-        'rounded-lg',
-        variants[variant],
-        hover && 'transition-all hover:shadow-lg hover:shadow-base/5',
-        className
-      )}
-    >
-      {children}
-    </div>
+  const classes = cn(
+    'rounded-lg',
+    variants[variant],
+    hover && 'transition-all hover:shadow-lg hover:shadow-base/5',
+    className
   );
+
+  if (hover) {
+    return (
+      <motion.div
+        whileHover={{ y: -2 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+        className={classes}
+      >
+        {children}
+      </motion.div>
+    );
+  }
+
+  return <div className={classes}>{children}</div>;
 }
 
 function CardHeader({ children, className }: { children: ReactNode; className?: string }) {

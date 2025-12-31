@@ -86,58 +86,27 @@ export function GodAgentDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: 
         setIsTyping(true);
 
         try {
-            const response = await fetch(`${api.baseURL}/chatbot/stream`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${local_getCookie('token')}` // Helper needed or use api wrapper differently
-                },
-                body: JSON.stringify({ message: userMsg })
-            });
-
-            if (!response.body) throw new Error("No response body");
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-
             let assistantMsg = { role: 'assistant', content: '', tools: [] } as Message;
 
             // Initialize assistant message placeholder
             setMessages(prev => [...prev, assistantMsg]);
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n\n');
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const event = JSON.parse(line.slice(6));
-
-                            if (event.type === 'text') {
-                                assistantMsg.content += event.data;
-                                // Force update last message
-                                setMessages(prev => [...prev.slice(0, -1), { ...assistantMsg }]);
-                            } else if (event.type === 'tool_start') {
-                                setCurrentTool({ ...event.data, status: 'running' });
-                            } else if (event.type === 'tool_result') {
-                                setCurrentTool(null);
-                                assistantMsg.tools = [...(assistantMsg.tools || []), { ...event.data, status: 'success' }];
-                                setMessages(prev => [...prev.slice(0, -1), { ...assistantMsg }]);
-                            } else if (event.type === 'tool_error') {
-                                setCurrentTool(null);
-                                assistantMsg.tools = [...(assistantMsg.tools || []), { ...event.data, status: 'error' }];
-                                setMessages(prev => [...prev.slice(0, -1), { ...assistantMsg }]);
-                            }
-                        } catch (e) {
-                            console.error("Parse error", e);
-                        }
-                    }
+            await api.streamMessage(userMsg, (event: any) => {
+                if (event.type === 'text') {
+                    assistantMsg.content += event.data;
+                    setMessages(prev => [...prev.slice(0, -1), { ...assistantMsg }]);
+                } else if (event.type === 'tool_start') {
+                    setCurrentTool({ ...event.data, status: 'running' });
+                } else if (event.type === 'tool_result') {
+                    setCurrentTool(null);
+                    assistantMsg.tools = [...(assistantMsg.tools || []), { ...event.data, status: 'success' }];
+                    setMessages(prev => [...prev.slice(0, -1), { ...assistantMsg }]);
+                } else if (event.type === 'tool_error') {
+                    setCurrentTool(null);
+                    assistantMsg.tools = [...(assistantMsg.tools || []), { ...event.data, status: 'error' }];
+                    setMessages(prev => [...prev.slice(0, -1), { ...assistantMsg }]);
                 }
-            }
+            });
 
         } catch (error) {
             console.error('Chat failed:', error);
@@ -146,13 +115,6 @@ export function GodAgentDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: 
             setIsTyping(false);
             setCurrentTool(null);
         }
-    };
-
-    // Quick helper to get token
-    const local_getCookie = (name: string) => {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop()?.split(';').shift();
     };
 
     // Derive conversational threads from message history
@@ -220,8 +182,7 @@ export function GodAgentDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: 
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-white/10">
                             <div className="flex items-center gap-2 text-sm text-white/70">
-                                <Bot size={16} />
-                                <span className="font-medium">Axle God Agent</span>
+                                <Image src="/logo.svg" alt="Logo" width={48} height={48} className="size-5" />
                             </div>
                             <button
                                 type="button"
@@ -237,7 +198,7 @@ export function GodAgentDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: 
                             <div className="hidden sm:flex sm:w-56 flex-col border-r border-white/10 bg-black/40 p-3 gap-2">
                                 <div className="flex items-center justify-between mb-1">
                                     <span className="text-[11px] uppercase tracking-[0.2em] text-white/40">
-                                        Threads
+                                        History
                                     </span>
                                     <button
                                         type="button"

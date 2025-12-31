@@ -30,6 +30,10 @@ export default function AgentDetailPage() {
   const [agent, setAgent] = useState<any>(null);
   const [executions, setExecutions] = useState<any[]>([]);
   const [integrations, setIntegrations] = useState<any[]>([]);
+  const [integrationHealth, setIntegrationHealth] = useState<any | null>(null);
+  const [triggers, setTriggers] = useState<any[]>([]);
+  const [webhooks, setWebhooks] = useState<any[]>([]);
+  const [webhookEvents, setWebhookEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Edit State
@@ -40,18 +44,40 @@ export default function AgentDetailPage() {
   const [taskInput, setTaskInput] = useState('');
   const [running, setRunning] = useState(false);
   const [liveExecution, setLiveExecution] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Trigger creation state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly'>('daily');
+  const [scheduleDayOfWeek, setScheduleDayOfWeek] = useState<number>(1);
+  const [scheduleHour, setScheduleHour] = useState<number>(9);
+  const [scheduleAmPm, setScheduleAmPm] = useState<'AM' | 'PM'>('AM');
+  const [webhookEnabled, setWebhookEnabled] = useState(false);
+  const [selectedWebhookEventId, setSelectedWebhookEventId] = useState<string>('github.push');
+  const [savingTriggers, setSavingTriggers] = useState(false);
 
   async function loadData() {
     try {
-      const [agentData, executionsData, integrationsData] = await Promise.all([
+      const [agentData, executionsData, integrationsData, triggersData, webhooksData, healthData, webhookEventsData] = await Promise.all([
         api.getAgent(params.id as string),
         api.getExecutions({ agentId: params.id as string, limit: 5 }),
-        api.getIntegrations()
+        api.getIntegrations(),
+        api.getTriggers(params.id as string),
+        api.getWebhooks(),
+        api.getIntegrationHealth(),
+        api.getWebhookEvents()
       ]);
 
       setAgent(agentData.agent);
       setExecutions(executionsData.executions || []);
       setIntegrations(integrationsData.integrations || []);
+      setTriggers(triggersData.triggers || []);
+      setWebhooks((webhooksData.webhooks || []).filter((w: any) => {
+        const agentId = typeof w.agentId === 'string' ? w.agentId : w.agentId?._id;
+        return agentId === (params.id as string);
+      }));
+      setIntegrationHealth(healthData);
+      setWebhookEvents(webhookEventsData?.events || []);
       setEditInstructions(agentData.agent.instructions || '');
     } catch (e) {
       console.error(e);
@@ -146,10 +172,10 @@ export default function AgentDetailPage() {
   };
 
   const handleRun = async () => {
-    if (!taskInput.trim()) return;
     setRunning(true);
     try {
-      await api.runAgent(agent._id, { task: taskInput });
+      const payload = taskInput.trim() ? { task: taskInput } : {};
+      await api.runAgent(agent._id, payload);
       setTaskInput('');
       // Refresh executions after a delay
       setTimeout(loadData, 1000);
@@ -161,10 +187,152 @@ export default function AgentDetailPage() {
     }
   };
 
-  if (loading || !agent) return <div className="p-8 text-white/20 animate-pulse">Loading agent details...</div>;
+  const handleDeleteAgent = async () => {
+    const ok = window.confirm('Delete this agent? This will also delete all its triggers and executions.');
+    if (!ok) return;
+
+    setDeleting(true);
+    try {
+      await api.deleteAgent(agent._id);
+      router.replace('/dashboard/agents');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (loading || !agent) {
+    return (
+      <div className="page-loader">
+        <div className="loader-light" />
+        <div className="page-loader-text">Loading agent details…</div>
+      </div>
+    );
+  }
+
+  const scheduleTriggers = triggers.filter((t: any) => t.type === 'schedule');
+  const webhookTriggers = triggers.filter((t: any) => t.type === 'webhook');
+
+  const dayLabels: { value: number; label: string; full: string }[] = [
+    { value: 0, label: 'Sun', full: 'Sunday' },
+    { value: 1, label: 'Mon', full: 'Monday' },
+    { value: 2, label: 'Tue', full: 'Tuesday' },
+    { value: 3, label: 'Wed', full: 'Wednesday' },
+    { value: 4, label: 'Thu', full: 'Thursday' },
+    { value: 5, label: 'Fri', full: 'Friday' },
+    { value: 6, label: 'Sat', full: 'Saturday' },
+  ];
+
+  const to24Hour = (hour: number, ampm: 'AM' | 'PM') => {
+    const h = Math.max(1, Math.min(12, hour));
+    if (ampm === 'AM') return h === 12 ? 0 : h;
+    return h === 12 ? 12 : h + 12;
+  };
+
+  const from24Hour = (hour24: number): { hour: number; ampm: 'AM' | 'PM' } => {
+    const h = Math.max(0, Math.min(23, hour24));
+    if (h === 0) return { hour: 12, ampm: 'AM' };
+    if (h === 12) return { hour: 12, ampm: 'PM' };
+    if (h > 12) return { hour: h - 12, ampm: 'PM' };
+    return { hour: h, ampm: 'AM' };
+  };
+
+  const buildCron = () => {
+    const hour24 = to24Hour(scheduleHour, scheduleAmPm);
+    if (scheduleFrequency === 'daily') return `0 ${hour24} * * *`;
+    return `0 ${hour24} * * ${scheduleDayOfWeek}`;
+  };
+
+  const cronToLabel = (cron?: string) => {
+    if (!cron) return 'Schedule';
+
+    const daily = /^0\s+(\d{1,2})\s+\*\s+\*\s+\*$/.exec(cron.trim());
+    if (daily) {
+      const hour24 = parseInt(daily[1], 10);
+      const t = from24Hour(hour24);
+      return `Every day at ${t.hour}:00 ${t.ampm}`;
+    }
+
+    const weekly = /^0\s+(\d{1,2})\s+\*\s+\*\s+(\d)$/.exec(cron.trim());
+    if (weekly) {
+      const hour24 = parseInt(weekly[1], 10);
+      const dow = parseInt(weekly[2], 10);
+      const t = from24Hour(hour24);
+      const day = dayLabels.find((d) => d.value === dow)?.full || 'day';
+      return `Weekly on ${day} at ${t.hour}:00 ${t.ampm}`;
+    }
+
+    return `Cron: ${cron}`;
+  };
+
+  const webhookSourceToLabel = (source?: string) => {
+    if (!source) return 'Webhook event';
+    const match = webhookEvents.find((e: any) => e.source === source || e.id === source);
+    return match?.label || source;
+  };
+
+  const webhookSourceToDescription = (source?: string) => {
+    if (!source) return '';
+    const match = webhookEvents.find((e: any) => e.source === source || e.id === source);
+    return match?.description || '';
+  };
+
+  const handleCreateSelectedTriggers = async () => {
+    if (!agent?._id || savingTriggers) return;
+    const selectedCron = buildCron();
+    const selectedEvent = webhookEvents.find((e: any) => e.id === selectedWebhookEventId);
+    const selectedSource = selectedEvent?.source || selectedEvent?.id;
+
+    const creates: Promise<any>[] = [];
+    if (scheduleEnabled && selectedCron) {
+      creates.push(api.createTrigger({ agentId: agent._id, type: 'schedule', cronExpression: selectedCron, enabled: true }));
+    }
+    if (webhookEnabled && selectedSource) {
+      creates.push(api.createTrigger({ agentId: agent._id, type: 'webhook', config: { source: selectedSource }, enabled: true }));
+    }
+
+    if (creates.length === 0) return;
+
+    setSavingTriggers(true);
+    try {
+      await Promise.allSettled(creates);
+      await loadData();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSavingTriggers(false);
+    }
+  };
+
+  const handleToggleTrigger = async (t: any) => {
+    try {
+      await api.updateTrigger(t._id, { enabled: !t.enabled });
+      await loadData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteTrigger = async (t: any) => {
+    try {
+      await api.deleteTrigger(t._id);
+      await loadData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20">
+    <div className="max-w-6xl mx-auto space-y-8 pb-20">
 
       {/* Back & Header */}
       <div>
@@ -186,22 +354,31 @@ export default function AgentDetailPage() {
             <p className="text-white/40 mt-0.5 max-w-xl">{agent.description || "No description provided."}</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2 mt-4">
             <Button
-              className="bg-white/5 rounded-full mt-4 hover:bg-white/10 text-white border border-white/5"
-              onClick={handleToggleStatus}
+              className="bg-base text-white rounded-full px-5"
+              onClick={handleRun}
+              loading={running}
             >
-              {agent.status === 'active' ? <Pause weight="fill" className="mr-2" /> : <Play weight="fill" className="mr-2" />}
-              {agent.status === 'active' ? 'Pause Agent' : 'Resume Agent'}
+              <Lightning size={16} weight="fill" />
+              Run now
+            </Button>
+            <Button
+              className="bg-red-500/10 text-red-200 hover:text-red-100 border border-red-500/20 rounded-full px-5"
+              onClick={handleDeleteAgent}
+              loading={deleting}
+            >
+              <Trash size={16} weight="fill" />
+              Delete
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        {/* Left Column: Instructions, Tools & Live status */}
-        <div className="lg:col-span-2 space-y-8">
+        {/* Left Column */}
+        <div className="lg:col-span-8 space-y-8">
 
           {/* Instructions */}
           <section>
@@ -225,7 +402,7 @@ export default function AgentDetailPage() {
                   />
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>Cancel</Button>
-                    <Button size="sm" onClick={handleSaveInstructions} className="bg-white text-black hover:bg-white/90">Save</Button>
+                    <Button size="sm" onClick={handleSaveInstructions}>Save</Button>
                   </div>
                 </div>
               ) : (
@@ -236,20 +413,273 @@ export default function AgentDetailPage() {
             </Card>
           </section>
 
-          {/* Connected Integrations */}
+          {/* Triggers */}
           <section>
-            <h2 className="text-lg font-medium text-white/80 mb-4">Available Tools</h2>
-            <div className="flex gap-3 flex-wrap">
-              {integrations.length === 0 ? (
-                <span className="text-sm text-white/20">No active integrations.</span>
-              ) : (
-                integrations.map((int: any) => (
-                  <div key={int.provider} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/5 text-sm text-white/70">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="capitalize">{int.provider}</span>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-white/80">Triggers</h2>
+            </div>
+
+            <Card className="p-5 bg-white/5 border border-white/5 rounded-2xl mb-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm font-medium text-white/80">Add triggers</div>
+                  <div className="text-xs text-white/30">Choose how this agent should start running.</div>
+                </div>
+                <Button
+                  onClick={handleCreateSelectedTriggers}
+                  disabled={savingTriggers || (!scheduleEnabled && !webhookEnabled)}
+                  className="rounded-full"
+                >
+                  {savingTriggers ? 'Saving…' : 'Add selected'}
+                </Button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-white/80">Schedule</div>
+                      <div className="text-xs text-white/30">Run automatically on a cadence.</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setScheduleEnabled(!scheduleEnabled)}
+                      className={`w-12 h-6 rounded-full flex items-center px-1 transition-colors ${scheduleEnabled ? 'bg-emerald-500/20' : 'bg-white/10'}`}
+                      aria-label="Toggle schedule trigger"
+                    >
+                      <div className={`w-4 h-4 rounded-full transition-all ${scheduleEnabled ? 'bg-emerald-400 ml-auto' : 'bg-white/20'}`} />
+                    </button>
                   </div>
-                ))
-              )}
+                  {scheduleEnabled && (
+                    <div className="mt-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setScheduleFrequency('daily')}
+                          className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
+                            scheduleFrequency === 'daily'
+                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                              : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
+                          }`}
+                        >
+                          Daily
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScheduleFrequency('weekly')}
+                          className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
+                            scheduleFrequency === 'weekly'
+                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                              : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
+                          }`}
+                        >
+                          Weekly
+                        </button>
+                      </div>
+
+                      {scheduleFrequency === 'weekly' && (
+                        <div className="grid grid-cols-7 gap-1">
+                          {dayLabels.map((d) => (
+                            <button
+                              key={d.value}
+                              type="button"
+                              onClick={() => setScheduleDayOfWeek(d.value)}
+                              className={`px-2 py-2 rounded-xl border text-[11px] font-medium transition-colors ${
+                                scheduleDayOfWeek === d.value
+                                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                                  : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
+                              }`}
+                            >
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs text-white/30">Time</div>
+                        <select
+                          value={scheduleHour}
+                          onChange={(e) => setScheduleHour(parseInt(e.target.value, 10))}
+                          className="bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-xs text-white/80"
+                        >
+                          {Array.from({ length: 12 }).map((_, i) => {
+                            const h = i + 1;
+                            return (
+                              <option key={h} value={h}>{h}:00</option>
+                            );
+                          })}
+                        </select>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setScheduleAmPm('AM')}
+                            className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
+                              scheduleAmPm === 'AM'
+                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                                : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
+                            }`}
+                          >
+                            AM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setScheduleAmPm('PM')}
+                            className={`px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
+                              scheduleAmPm === 'PM'
+                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                                : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
+                            }`}
+                          >
+                            PM
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-white/30">
+                        Will run: {scheduleFrequency === 'daily' ? 'Every day' : `Weekly on ${dayLabels.find(d => d.value === scheduleDayOfWeek)?.label || 'day'}`} at {scheduleHour}:00 {scheduleAmPm}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-2xl bg-black/20 border border-white/5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-white/80">Webhook event</div>
+                      <div className="text-xs text-white/30">Run when an external event happens.</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setWebhookEnabled(!webhookEnabled)}
+                      className={`w-12 h-6 rounded-full flex items-center px-1 transition-colors ${webhookEnabled ? 'bg-emerald-500/20' : 'bg-white/10'}`}
+                      aria-label="Toggle webhook trigger"
+                    >
+                      <div className={`w-4 h-4 rounded-full transition-all ${webhookEnabled ? 'bg-emerald-400 ml-auto' : 'bg-white/20'}`} />
+                    </button>
+                  </div>
+
+                  {webhookEnabled && (
+                    <div className="mt-3 grid grid-cols-1 gap-2 max-h-56 overflow-y-auto">
+                      {(webhookEvents.length ? webhookEvents : [{ id: 'github.push', label: 'New commit pushed', description: 'Triggers when code is pushed to a repository.' }]).map((ev: any) => (
+                        <button
+                          key={ev.id}
+                          type="button"
+                          onClick={() => setSelectedWebhookEventId(ev.id)}
+                          className={`text-left px-3 py-2 rounded-xl border transition-colors ${
+                            selectedWebhookEventId === ev.id
+                              ? 'border-emerald-500/30 bg-emerald-500/10'
+                              : 'border-white/10 bg-white/5 hover:bg-white/10'
+                          }`}
+                        >
+                          <div className={`text-xs font-medium ${selectedWebhookEventId === ev.id ? 'text-emerald-200' : 'text-white/80'}`}>
+                            {ev.label || ev.id}
+                          </div>
+                          <div className="text-[11px] text-white/30 line-clamp-2">{ev.description || ''}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-5 bg-white/5 border border-white/5 rounded-2xl">
+                <div className="text-xs uppercase tracking-widest text-white/30 mb-2">Schedules</div>
+                {scheduleTriggers.length === 0 ? (
+                  <div className="text-sm text-white/30">No schedule triggers yet.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {scheduleTriggers.map((t: any) => (
+                      <div key={t._id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-black/20 border border-white/5">
+                        <div className="min-w-0">
+                          <div className="text-sm text-white/80 truncate">{cronToLabel(t.cronExpression || t.config?.cron)}</div>
+                          <div className="text-[11px] text-white/30">
+                            {t.enabled ? 'Enabled' : 'Disabled'}
+                            {t.lastTriggeredAt ? ` • Last: ${safeFormatDistanceToNow(t.lastTriggeredAt, { addSuffix: true })}` : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTrigger(t)}
+                            className={`text-[10px] px-2 py-0.5 rounded-full border ${t.enabled ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10' : 'border-white/10 text-white/30 bg-white/5'}`}
+                          >
+                            {t.enabled ? 'ON' : 'OFF'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTrigger(t)}
+                            className="text-[10px] px-2 py-0.5 rounded-full border border-red-500/20 text-red-300 bg-red-500/10"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              <Card className="p-5 bg-white/5 border border-white/5 rounded-2xl">
+                <div className="text-xs uppercase tracking-widest text-white/30 mb-2">Webhooks</div>
+                {webhookTriggers.length === 0 ? (
+                  <div className="text-sm text-white/30">No webhook triggers yet.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {webhookTriggers.map((t: any) => {
+                      const match = webhooks.find((w: any) => w.webhookPath === (t.webhookPath || t.config?.webhookPath));
+                      const url = match?.url || match?.relativeUrl || t.webhookUrl;
+                      const source = (t.source || t.config?.source) as string | undefined;
+                      return (
+                        <div key={t._id} className="p-3 rounded-xl bg-black/20 border border-white/5">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm text-white/80 truncate">
+                              {webhookSourceToLabel(source)}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleTrigger(t)}
+                                className={`text-[10px] px-2 py-0.5 rounded-full border ${t.enabled ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10' : 'border-white/10 text-white/30 bg-white/5'}`}
+                              >
+                                {t.enabled ? 'ON' : 'OFF'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTrigger(t)}
+                                className="text-[10px] px-2 py-0.5 rounded-full border border-red-500/20 text-red-300 bg-red-500/10"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                          {webhookSourceToDescription(source) && (
+                            <div className="mt-1 text-[11px] text-white/30 line-clamp-2">
+                              {webhookSourceToDescription(source)}
+                            </div>
+                          )}
+                          <div className="mt-2 text-[11px] text-white/30 break-all font-mono">
+                            {url || '—'}
+                          </div>
+                          {url && (
+                            <div className="mt-2 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => copyText(url)}
+                                className="text-[11px] text-white/40 hover:text-white transition-colors"
+                              >
+                                Copy URL
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
             </div>
           </section>
 
@@ -287,9 +717,9 @@ export default function AgentDetailPage() {
 
         </div>
 
-        {/* Right Column: Run Panel */}
-        <div className="lg:col-span-1">
-          <Card className="p-6 bg-gradient-to-b from-base/10 to-transparent border border-white/10 rounded-2xl sticky top-6">
+        {/* Right Column */}
+        <div className="lg:col-span-4 space-y-6">
+          <Card className="p-6 bg-white/3 border-2 border-white/3 rounded-2xl top-6">
             <div className="flex items-center gap-2 mb-4 text-base">
               <Lightning weight="fill" size={20} />
               <h3 className="font-medium">Run Task</h3>
@@ -306,15 +736,17 @@ export default function AgentDetailPage() {
               <Button
                 className="w-full bg-base text-white rounded-full py-3"
                 onClick={handleRun}
-                disabled={!taskInput.trim() || running}
+                disabled={running}
               >
                 {running ? 'Starting...' : 'Run Agent'}
               </Button>
               <p className="text-xs text-white/30 text-center">
-                Agent will use available tools to accept the task.
+                Agent will use available tools to run the task.
               </p>
             </div>
           </Card>
+
+          
         </div>
 
       </div>

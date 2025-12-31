@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { X, ChevronDown, Bell, Calendar, Mail, FileText, CheckCircle, AlertTriangle, Info, Play, Github, Hash, MessageSquare } from 'lucide-react';
-import { Button } from "@heroui/react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from '@/components/ui/button';
 
 interface Notification {
     id: string;
@@ -22,9 +22,10 @@ interface NotificationDrawerProps {
     isOpen: boolean;
     onClose: () => void;
     notifications: Notification[];
+    onDismissAll?: () => void;
 }
 
-export function NotificationDrawer({ isOpen, onClose, notifications }: NotificationDrawerProps) {
+export function NotificationDrawer({ isOpen, onClose, notifications, onDismissAll }: NotificationDrawerProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     if (!isOpen) return null;
@@ -77,9 +78,13 @@ export function NotificationDrawer({ isOpen, onClose, notifications }: Notificat
                             </span>
                         )}
                     </div>
-                    <Button isIconOnly variant="light" radius="full" size="sm" onPress={onClose} className="text-white/40 hover:bg-white/10 hover:text-white transition-colors">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+                    >
                         <X size={18} />
-                    </Button>
+                    </button>
                 </div>
 
                 {/* List */}
@@ -181,13 +186,13 @@ export function NotificationDrawer({ isOpen, onClose, notifications }: Notificat
 
                                                     {notif.actionUrl ? (
                                                         <Button
-                                                            className="w-full bg-base text-white font-semibold rounded-lg h-9 shadow-lg shadow-blue-900/20 text-sm hover:scale-[1.02] active:scale-95 transition-all"
-                                                            onPress={() => window.open(notif.actionUrl, '_blank')}
+                                                            className="w-full rounded-lg h-9 text-sm"
+                                                            onClick={() => window.open(notif.actionUrl, '_blank')}
                                                         >
                                                             {notif.action || "View Details"}
                                                         </Button>
                                                     ) : (
-                                                        <Button disabled className="w-full bg-white/5 text-white/20 rounded-lg h-9 text-sm">No Action Available</Button>
+                                                        <Button disabled className="w-full rounded-lg h-9 text-sm">No Action Available</Button>
                                                     )}
                                                 </div>
                                             </div>
@@ -209,8 +214,12 @@ export function NotificationDrawer({ isOpen, onClose, notifications }: Notificat
                             <span className="text-[10px] text-white/40 font-semibold uppercase tracking-wider">Assistant Ready</span>
                         </div> */}
                         <div className="flex w-full">
-                            <Button variant="light" radius="full" className="text-white w-full bg-base hover:text-white text-sm font-semibold px-3">Dismiss All</Button>
-                            
+                            <Button
+                                className="w-full rounded-full text-sm font-semibold px-3"
+                                onClick={() => onDismissAll?.()}
+                            >
+                                Dismiss All
+                            </Button>
                         </div>
                 </div>
             </motion.div>

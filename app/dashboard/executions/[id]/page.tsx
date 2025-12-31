@@ -22,10 +22,12 @@ import { socketClient } from '@/lib/socket';
 
 export default function ExecutionDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const [execution, setExecution] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showTechnical, setShowTechnical] = useState(false);
   const [liveEvents, setLiveEvents] = useState<any[]>([]);
+  const [retrying, setRetrying] = useState(false);
 
   async function loadExecution() {
     try {
@@ -41,6 +43,24 @@ export default function ExecutionDetailPage() {
   useEffect(() => {
     if (params.id) loadExecution();
   }, [params.id]);
+
+  const handleRetry = async () => {
+    if (!execution?._id || retrying) return;
+    setRetrying(true);
+    try {
+      const res: any = await api.retryExecution(execution._id);
+      const nextId = res?.newExecutionId || res?.executionId;
+      if (nextId) {
+        router.push(`/dashboard/executions/${nextId}`);
+        return;
+      }
+      await loadExecution();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   // Socket-driven updates with polling fallback
   useEffect(() => {
@@ -85,7 +105,14 @@ export default function ExecutionDetailPage() {
     };
   }, [execution?._id, execution?.agentId, execution?.status]);
 
-  if (loading || !execution) return <div className="p-8 text-white/20 animate-pulse">Initializing execution view...</div>;
+  if (loading || !execution) {
+    return (
+      <div className="page-loader">
+        <div className="loader-light" />
+        <div className="page-loader-text">Initializing execution view…</div>
+      </div>
+    );
+  }
 
   const duration = execution.startedAt && execution.finishedAt
     ? (new Date(execution.finishedAt).getTime() - new Date(execution.startedAt).getTime()) / 1000
@@ -116,8 +143,12 @@ export default function ExecutionDetailPage() {
 
           <div className="flex gap-2">
             {execution.status === 'failed' && (
-              <Button className="bg-base text-black w-fit hover:bg-base/90 rounded-full text-sm px-5 py-2.5">
-                Retry Execution
+              <Button
+                className="w-fit rounded-full text-sm px-5 py-2.5"
+                onClick={handleRetry}
+                disabled={retrying}
+              >
+                {retrying ? 'Retrying…' : 'Retry Execution'}
               </Button>
             )}
           </div>

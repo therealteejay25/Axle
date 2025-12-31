@@ -59,34 +59,44 @@ const ALL_PROVIDERS = [
 
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<any[]>([]);
+  const [health, setHealth] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function loadData() {
     try {
-      const data = await api.getIntegrations();
-      setIntegrations(data.integrations);
-      console.log(data.integrations)
+      const [data, healthData] = await Promise.all([
+        api.getIntegrations(),
+        api.getIntegrationHealth(),
+      ]);
+      setIntegrations(data.integrations || []);
+      setHealth(healthData);
     } finally {
       setLoading(false);
     }
   }
-  console.log(integrations)
 
   useEffect(() => {
     loadData();
   }, []);
 
   const handleConnect = async (provider: string) => {
-    const url = await api.connectIntegration(provider);
-    window.location.href = url.authUrl;
+    const res: any = await api.connectIntegration(provider);
+    const authUrl = res?.authUrl || res?.url;
+    if (!authUrl) {
+      console.error('Missing authUrl from backend', res);
+      return;
+    }
+    window.location.href = authUrl;
   };
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="p-8 text-white/20 animate-pulse">
-        Scanning connected apps...
+      <div className="page-loader">
+        <div className="loader-light" />
+        <div className="page-loader-text">Scanning connected apps…</div>
       </div>
     );
+  }
 
   return (
     <div className="max-w-5xl pb-28 mx-auto space-y-12">
@@ -98,6 +108,11 @@ export default function IntegrationsPage() {
           <p className="text-white/40 mt-1">
             Connect the tools your agents will use to act.
           </p>
+          {health?.summary && (
+            <p className="text-white/20 text-xs mt-3">
+              {health.summary.healthy} healthy • {health.summary.warnings} warnings • {health.summary.expired} expired
+            </p>
+          )}
         </div>
       </div>
 
@@ -106,6 +121,8 @@ export default function IntegrationsPage() {
     const integration = integrations.find(
       i => i.provider === app.provider
     );
+
+    const healthItem = health?.integrations?.find((h: any) => h.provider === app.provider);
 
     const isConnected = integration?.status === "connected";
 
@@ -127,8 +144,14 @@ export default function IntegrationsPage() {
             </div>
 
             {isConnected ? (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-base/10 text-base border border-base text-[10px] font-bold tracking-wider uppercase">
-                Connected
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold tracking-wider uppercase ${
+                healthItem?.status === 'expired'
+                  ? 'bg-red-500/10 text-red-300 border-red-500/30'
+                  : healthItem?.status === 'warning'
+                  ? 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30'
+                  : 'bg-base/10 text-base border-base'
+              }`}>
+                {healthItem?.status === 'expired' ? 'Expired' : healthItem?.status === 'warning' ? 'Warning' : 'Connected'}
               </div>
             ) : (
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 text-white/30 border border-white/5 text-[10px] font-bold tracking-wider uppercase">
@@ -143,6 +166,11 @@ export default function IntegrationsPage() {
           <p className="text-sm text-white/40 leading-relaxed">
             {app.description}
           </p>
+          {isConnected && healthItem?.message && (
+            <p className="text-[11px] text-white/25 mt-3">
+              {healthItem.message}
+            </p>
+          )}
         </div>
 
         <div className="pt-6 flex items-center justify-between">
@@ -153,7 +181,7 @@ export default function IntegrationsPage() {
           ) : (
             <Button
               onClick={() => handleConnect(app.provider)}
-              className="bg-base cursor-pointer text-black hover:bg-base/90 rounded-full px-4 w-full py-2.5 text-sm"
+              className="cursor-pointer rounded-full px-4 w-full py-2.5 text-sm"
             >
               Connect
             </Button>

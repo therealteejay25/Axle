@@ -1,5 +1,6 @@
 // API Configuration
-const API_BASE_URL = 'https://axle-api-q8oa.onrender.com/api/v1';
+const API_ORIGIN = 'https://axle-api-q8oa.onrender.com';
+const API_BASE_URL = `${API_ORIGIN.replace(/\/$/, '')}/api/v1`;
 
 // Token storage
 const getToken = () => {
@@ -25,6 +26,14 @@ class ApiClient {
     this.baseURL = baseURL;
   }
 
+  getBaseUrl() {
+    return this.baseURL;
+  }
+
+  getOrigin() {
+    return this.baseURL.replace(/\/api\/v\d+\/?$/, '');
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -41,16 +50,55 @@ class ApiClient {
     };
 
     const response = await fetch(`${this.baseURL}${endpoint}`, config);
-    
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error || `HTTP ${response.status}`);
+      if (response.status === 401) {
+        clearToken();
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const payload = contentType.includes('application/json')
+        ? await response.json().catch(() => null)
+        : await response.text().catch(() => '');
+
+      const message =
+        (payload && typeof payload === 'object' && 'error' in payload && (payload as any).error)
+          ? String((payload as any).error)
+          : typeof payload === 'string' && payload
+            ? payload
+            : `HTTP ${response.status}`;
+
+      throw new Error(message);
     }
 
     return response.json();
   }
 
   // Auth
+  async register(email: string, password: string, name?: string) {
+    const data = await this.request<{ accessToken: string; user: any }>(
+      '/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password, name }),
+      }
+    );
+    setToken(data.accessToken);
+    return data;
+  }
+
+  async login(email: string, password: string) {
+    const data = await this.request<{ accessToken: string; user: any }>(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }
+    );
+    setToken(data.accessToken);
+    return data;
+  }
+
   async sendMagicLink(email: string) {
     return this.request('/auth/magic-link', {
       method: 'POST',
@@ -65,6 +113,14 @@ class ApiClient {
     });
     setToken(data.accessToken);
     return data;
+  }
+
+  async logout() {
+    try {
+      await this.request('/auth/logout', { method: 'POST' });
+    } finally {
+      clearToken();
+    }
   }
 
   // Agents - FIXED
@@ -178,7 +234,7 @@ class ApiClient {
   }
 
   async connectIntegration(provider: string) {
-    return this.request<{ url: string }>(`/integrations/${provider}/connect`);
+    return this.request<{ authUrl: string }>(`/integrations/${provider}/connect`);
   }
 
   async disconnectIntegration(provider: string) {
@@ -215,6 +271,65 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ message }),
     });
+  }
+
+  async streamMessage(
+    message: string,
+    onEvent: (event: any) => void
+  ) {
+    const token = getToken();
+    const response = await fetch(`${this.baseURL}/chatbot/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({ message }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+
+    if (!response.body) throw new Error('No response body');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE frames are separated by a blank line
+      while (true) {
+        const idx = buffer.indexOf('\n\n');
+        if (idx === -1) break;
+        const rawEvent = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+
+        // Collect all data: lines (SSE can send multiple)
+        const dataLines = rawEvent
+          .split(/\r?\n/)
+          .filter((l) => l.startsWith('data:'))
+          .map((l) => l.replace(/^data:\s?/, ''))
+          .filter(Boolean);
+
+        if (!dataLines.length) continue;
+
+        const payload = dataLines.join('\n');
+        if (!payload || payload === '[DONE]') continue;
+
+        try {
+          onEvent(JSON.parse(payload));
+        } catch {
+          // ignore malformed payload (likely partial JSON)
+        }
+      }
+    }
   }
 
   async getChatHistory() {
@@ -260,6 +375,10 @@ class ApiClient {
     return this.request<{ notifications: any[] }>('/dashboard/notifications');
   }
 
+  async getTemplates() {
+    return this.request<{ templates: any[]; categories: string[] }>('/dashboard/templates');
+  }
+
   // Profile
   async getProfile() {
     return this.request('/profile');
@@ -275,6 +394,14 @@ class ApiClient {
   // Webhooks
   async getWebhooks() {
     return this.request<{ webhooks: any[] }>('/webhooks');
+  }
+
+  async getWebhookProviders() {
+    return this.request<{ providers: { provider: string; label: string }[] }>('/webhooks/providers');
+  }
+
+  async getWebhookEvents() {
+    return this.request<{ events: any[] }>('/webhooks/events');
   }
 }
 
