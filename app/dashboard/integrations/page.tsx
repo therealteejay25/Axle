@@ -183,7 +183,8 @@ export default function IntegrationsPage() {
 
         <div className="pt-6 flex items-center justify-between">
           {isConnected ? (
-            <div className="flex w-full items-center gap-2">
+           <div>
+             <div className="flex w-full items-center gap-2">
               <Button
                 onClick={() => handleConnect(app.provider)}
                 className={
@@ -209,6 +210,7 @@ export default function IntegrationsPage() {
                 {isExpired ? 'Reconnect' : 'Reconnect'}
               </Button>
             </div>
+           </div>
           ) : (
             <Button
               onClick={() => handleConnect(app.provider)}
