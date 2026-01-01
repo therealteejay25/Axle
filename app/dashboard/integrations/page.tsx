@@ -41,7 +41,14 @@ const ALL_PROVIDERS = [
     category: "Productivity",
     description: "Create and read documents.",
   },
-   {
+  // {
+  //   name: "Instagram",
+  //   provider: "instagram",
+  //   icon: "/insta.svg",
+  //   category: "Social",
+  //   description: "Manage posts and engagement.",
+  // },
+  {
     name: "X (Twitter)",
     provider: "twitter",
     icon: "/twitter.svg",
@@ -55,7 +62,6 @@ export default function IntegrationsPage() {
   const [health, setHealth] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
-  const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null);
 
   async function loadData() {
     try {
@@ -86,21 +92,6 @@ export default function IntegrationsPage() {
       window.location.href = authUrl;
     } finally {
       setConnectingProvider(null);
-    }
-  };
-
-  const handleDisconnect = async (provider: string) => {
-    const ok = window.confirm(`Disconnect ${provider}? You'll need to reconnect to use it again.`);
-    if (!ok) return;
-
-    try {
-      setDisconnectingProvider(provider);
-      await api.disconnectIntegration(provider);
-      await loadData();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setDisconnectingProvider(null);
     }
   };
 
@@ -202,14 +193,6 @@ export default function IntegrationsPage() {
                 loading={connectingProvider === app.provider}
               >
                 {isExpired ? 'Reconnect' : 'Reconnect'}
-              </Button>
-              <Button
-                onClick={() => handleDisconnect(app.provider)}
-                variant="ghost"
-                className="cursor-pointer rounded-full px-4 py-2.5 text-sm bg-red-500/10 text-red-200 hover:text-red-100 border border-red-500/20 hover:bg-red-500/15"
-                loading={disconnectingProvider === app.provider}
-              >
-                Disconnect
               </Button>
             </div>
           ) : (
