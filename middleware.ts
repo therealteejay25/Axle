@@ -38,27 +38,11 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
   
-  // Get the auth token from cookies - check both possible cookie names
-  const token = request.cookies.get('axle_access_token')?.value || 
-                request.cookies.get('auth-token')?.value;
+  // IMPORTANT: We can't reliably check localStorage in middleware (runs on edge)
+  // and httpOnly cookies from cross-origin backend may not be accessible
+  // So we'll let protected routes render and handle auth client-side
   
-  // If accessing a protected route without a token, redirect to login
-  if (isProtectedRoute && !token) {
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-  
-  // If accessing auth pages while already logged in, redirect to app
-  if (token && pathname.startsWith('/auth/') && pathname !== '/auth/logout') {
-    return NextResponse.redirect(new URL('/app', request.url));
-  }
-  
-  // If accessing root while logged in, redirect to app
-  if (token && pathname === '/') {
-    return NextResponse.redirect(new URL('/app', request.url));
-  }
-  
+  // Just allow all requests through - auth will be handled by the pages themselves
   return NextResponse.next();
 }
 

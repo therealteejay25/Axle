@@ -18,6 +18,7 @@ import { StaggerContainer, StaggerItem, ScaleIn } from "@/components/ui/animatio
 import { DailyDigestModal } from "@/components/dashboard/DailyDigestModal";
 import { DailyDigestCard } from "@/components/dashboard/DailyDigestCard";
 import { UsageChart } from "@/components/dashboard/UsageChart";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -96,6 +97,8 @@ type Integration = {
 };
 
 const Page = () => {
+  useAuthGuard(); // Protect this page
+  
   const router = useRouter();
   const [profile, setProfile] = useState<unknown>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
