@@ -38,8 +38,9 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
   
-  // Get the auth token from cookies
-  const token = request.cookies.get('auth-token')?.value;
+  // Get the auth token from cookies - check both possible cookie names
+  const token = request.cookies.get('axle_access_token')?.value || 
+                request.cookies.get('auth-token')?.value;
   
   // If accessing a protected route without a token, redirect to login
   if (isProtectedRoute && !token) {
