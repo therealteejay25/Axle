@@ -7,9 +7,9 @@ import { Hash, Lock, Users, Plus, Settings, Bell, CheckCircle2 } from 'lucide-re
 
 interface SlackChannelCardProps {
   data: {
-    channelName: string;
+    channelName?: string;
     description?: string;
-    isPrivate: boolean;
+    isPrivate?: boolean;
     members?: string[];
     purpose?: string;
   };
@@ -17,13 +17,13 @@ interface SlackChannelCardProps {
 }
 
 export default function SlackChannelCard({ data, onCreate }: SlackChannelCardProps) {
-  const [channelName, setChannelName] = useState(data.channelName);
+  const [channelName, setChannelName] = useState(data.channelName || '');
   const [description, setDescription] = useState(data.description || '');
-  const [isPrivate, setIsPrivate] = useState(data.isPrivate);
+  const [isPrivate, setIsPrivate] = useState(data.isPrivate || false);
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
-    if (!onCreate || !channelName.trim()) return;
+    if (!onCreate || !channelName?.trim()) return;
     setCreating(true);
     try {
       await onCreate({
@@ -152,7 +152,7 @@ export default function SlackChannelCard({ data, onCreate }: SlackChannelCardPro
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20"
                 >
                   <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold">
-                    {member[0].toUpperCase()}
+                    {member?.[0]?.toUpperCase() || '?'}
                   </div>
                   <span className="text-xs text-purple-200">{member}</span>
                 </div>
@@ -166,7 +166,7 @@ export default function SlackChannelCard({ data, onCreate }: SlackChannelCardPro
       <div className="relative px-6 py-4 border-t border-purple-500/20 bg-gradient-to-r from-purple-950/40 to-transparent">
         <button
           onClick={handleCreate}
-          disabled={creating || !channelName.trim()}
+          disabled={creating || !channelName?.trim()}
           className="w-full group relative px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 disabled:from-gray-700 disabled:to-gray-800 transition-all duration-300 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 disabled:shadow-none"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
