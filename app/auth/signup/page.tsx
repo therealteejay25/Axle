@@ -468,7 +468,7 @@ const Page = () => {
               </div>
             </StaggerItem>
 
-            <StaggerItem>
+            {/* <StaggerItem>
               <Button
                 type="button"
                 onClick={async () => {
@@ -495,7 +495,7 @@ const Page = () => {
                   Continue with Google
                 </span>
               </Button>
-            </StaggerItem>
+            </StaggerItem> */}
           </form>
 
           <StaggerItem>
