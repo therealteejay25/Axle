@@ -12,14 +12,18 @@ interface Message {
 
 interface GmailThreadCardProps {
   data: {
-    subject: string;
-    messages: Message[];
-    totalMessages: number;
+    subject?: string;
+    messages?: Message[];
+    totalMessages?: number;
   };
 }
 
 export default function GmailThreadCard({ data }: GmailThreadCardProps) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  
+  const messages = data.messages || [];
+  const totalMessages = data.totalMessages || messages.length;
+  const subject = data.subject || 'Email Thread';
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-gradient-to-br from-red-950/40 via-gray-900 to-gray-950 shadow-2xl shadow-red-500/10 max-w-3xl">
@@ -33,15 +37,15 @@ export default function GmailThreadCard({ data }: GmailThreadCardProps) {
             </div>
           </div>
           <div className="flex-1">
-            <h3 className="text-sm font-bold text-white mb-0.5">{data.subject}</h3>
-            <p className="text-xs text-red-300/70">{data.totalMessages} messages in thread</p>
+            <h3 className="text-sm font-bold text-white mb-0.5">{subject}</h3>
+            <p className="text-xs text-red-300/70">{totalMessages} messages in thread</p>
           </div>
         </div>
       </div>
 
       {/* Messages */}
       <div className="relative divide-y divide-gray-800/50">
-        {data.messages.slice(0, 3).map((msg, idx) => (
+        {messages.slice(0, 3).map((msg, idx) => (
           <div key={idx} className="group">
             <button
               onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
@@ -49,15 +53,15 @@ export default function GmailThreadCard({ data }: GmailThreadCardProps) {
             >
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                  {msg.from[0].toUpperCase()}
+                  {msg.from?.[0]?.toUpperCase() || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-sm text-white">{msg.from}</span>
+                    <span className="font-semibold text-sm text-white">{msg.from || 'Unknown'}</span>
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1 text-xs text-red-300/70">
                         <Clock className="w-3 h-3" />
-                        <span>{msg.date}</span>
+                        <span>{msg.date || 'Unknown date'}</span>
                       </div>
                       {expandedIdx === idx ? (
                         <ChevronUp className="w-4 h-4 text-red-400" />
@@ -66,7 +70,7 @@ export default function GmailThreadCard({ data }: GmailThreadCardProps) {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-gray-400 line-clamp-1">{msg.snippet}</p>
+                  <p className="text-sm text-gray-400 line-clamp-1">{msg.snippet || 'No preview available'}</p>
                 </div>
               </div>
             </button>
@@ -82,10 +86,10 @@ export default function GmailThreadCard({ data }: GmailThreadCardProps) {
         ))}
       </div>
 
-      {data.totalMessages > 3 && (
+      {totalMessages > 3 && (
         <div className="px-6 py-3 border-t border-gray-800/50 bg-red-950/20 text-center">
           <span className="text-xs text-red-300/70">
-            + {data.totalMessages - 3} more messages
+            + {totalMessages - 3} more messages
           </span>
         </div>
       )}
