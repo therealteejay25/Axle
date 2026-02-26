@@ -1,8 +1,8 @@
 // components/chat/renderers/slack/SlackMessageCard.tsx
 'use client';
 
-import React, { useState } from 'react';
-import { Hash, Send, AtSign, MessageSquare, Clock, Users, Lock } from 'lucide-react';
+import React from 'react';
+import { Hash, AtSign, Clock, Lock } from 'lucide-react';
 
 interface SlackMessageCardProps {
   data: {
@@ -18,23 +18,6 @@ interface SlackMessageCardProps {
 }
 
 export default function SlackMessageCard({ data, onSend }: SlackMessageCardProps) {
-  const [message, setMessage] = useState(data.message);
-  const [sending, setSending] = useState(false);
-
-  const handleSend = async () => {
-    if (!onSend || !message.trim()) return;
-    setSending(true);
-    try {
-      await onSend({
-        channel: data.channel,
-        message,
-        thread_ts: data.threadTs,
-      });
-    } finally {
-      setSending(false);
-    }
-  };
-
   return (
     <div className="relative overflow-hidden rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-950/40 via-gray-900 to-black shadow-2xl shadow-purple-500/10 max-w-2xl">
       <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/10 to-purple-500/0 animate-pulse" />
@@ -92,13 +75,11 @@ export default function SlackMessageCard({ data, onSend }: SlackMessageCardProps
               <span className="text-xs text-purple-300/70">just now</span>
             </div>
             
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={6}
-              placeholder="Write your message..."
-              className="w-full px-4 py-3 bg-black/40 border border-purple-500/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all resize-none text-sm leading-relaxed"
-            />
+            <div className="px-4 py-3 bg-black/40 border border-purple-500/20 rounded-xl">
+              <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">
+                {data.message}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -130,24 +111,9 @@ export default function SlackMessageCard({ data, onSend }: SlackMessageCardProps
 
       {/* Footer */}
       <div className="relative px-6 py-4 border-t border-purple-500/20 bg-gradient-to-r from-purple-950/40 to-transparent">
-        <div className="flex items-center justify-between">
-          <div className="text-xs text-purple-300/70">
-            {message.length} characters
-          </div>
-          
-          <button
-            onClick={handleSend}
-            disabled={sending || !message.trim()}
-            className="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 disabled:from-gray-700 disabled:to-gray-800 transition-all duration-300 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-105 disabled:scale-100 disabled:shadow-none"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
-            <div className="relative flex items-center gap-2">
-              <Send className="w-4 h-4 text-white" />
-              <span className="text-sm font-bold text-white">
-                {sending ? 'Sending...' : 'Send Message'}
-              </span>
-            </div>
-          </button>
+        <div className="flex items-center gap-2 text-xs text-purple-300/70">
+          <Clock className="w-3.5 h-3.5" />
+          <span>Message ready • {data.message.length} characters • Reply "go ahead" or "continue" to send</span>
         </div>
       </div>
     </div>
